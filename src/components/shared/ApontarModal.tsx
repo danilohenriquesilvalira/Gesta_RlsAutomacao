@@ -96,20 +96,26 @@ export function ApontarModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={(o) => {
+      if (!o) {
+        reset();
+        clearPhotos();
+        onClose();
+      }
+    }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl">
         <DialogHeader>
-          <DialogTitle className="text-navy text-lg font-bold">
-            Apontar Horas
+          <DialogTitle className="text-navy text-lg font-black uppercase tracking-wider">
+            Registo de Horas
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 pt-2">
           <div className="space-y-2">
-            <Label>Obra</Label>
+            <Label className="text-xs font-bold uppercase text-gray-muted">Obra</Label>
             <Select onValueChange={(v) => setValue('obra_id', v, { shouldValidate: true })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a obra" />
+              <SelectTrigger className="rounded-xl border-gray-border h-11">
+                <SelectValue placeholder="Selecione a obra de destino" />
               </SelectTrigger>
               <SelectContent>
                 {obras
@@ -122,15 +128,15 @@ export function ApontarModal({
               </SelectContent>
             </Select>
             {errors.obra_id && (
-              <p className="text-sm text-error">{errors.obra_id.message}</p>
+              <p className="text-xs text-error font-medium">{errors.obra_id.message}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label>Tipo de Serviço</Label>
+            <Label className="text-xs font-bold uppercase text-gray-muted">Tipo de Serviço</Label>
             <Select onValueChange={(v) => setValue('tipo_servico', v, { shouldValidate: true })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o serviço" />
+              <SelectTrigger className="rounded-xl border-gray-border h-11">
+                <SelectValue placeholder="Que tipo de trabalho realizou?" />
               </SelectTrigger>
               <SelectContent>
                 {TIPOS_SERVICO.map((tipo) => (
@@ -141,52 +147,53 @@ export function ApontarModal({
               </SelectContent>
             </Select>
             {errors.tipo_servico && (
-              <p className="text-sm text-error">{errors.tipo_servico.message}</p>
+              <p className="text-xs text-error font-medium">{errors.tipo_servico.message}</p>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Hora Entrada</Label>
-              <Input type="time" {...register('hora_entrada')} />
+              <Label className="text-xs font-bold uppercase text-gray-muted">Hora de Entrada</Label>
+              <Input type="time" {...register('hora_entrada')} className="rounded-xl border-gray-border h-11" />
               {errors.hora_entrada && (
-                <p className="text-sm text-error">{errors.hora_entrada.message}</p>
+                <p className="text-xs text-error font-medium">{errors.hora_entrada.message}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label>Hora Saída</Label>
-              <Input type="time" {...register('hora_saida')} />
+              <Label className="text-xs font-bold uppercase text-gray-muted">Hora de Saída</Label>
+              <Input type="time" {...register('hora_saida')} className="rounded-xl border-gray-border h-11" />
               {errors.hora_saida && (
-                <p className="text-sm text-error">{errors.hora_saida.message}</p>
+                <p className="text-xs text-error font-medium">{errors.hora_saida.message}</p>
               )}
             </div>
           </div>
 
           {totalHoras !== null && (
-            <div className="bg-gray-bg rounded-lg px-4 py-2 text-center">
-              <span className="text-sm text-gray-muted">Total: </span>
-              <span className="text-lg font-bold text-navy">
+            <div className="bg-emerald-50 rounded-2xl p-4 text-center border border-emerald-100">
+              <span className="text-xs text-emerald-600 font-bold uppercase tracking-wider">Total Calculado: </span>
+              <span className="text-xl font-black text-emerald-700 ml-1">
                 {totalHoras.toFixed(2)}h
               </span>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label>Tipo de Hora</Label>
+            <Label className="text-xs font-bold uppercase text-gray-muted">Classificação</Label>
             <HoraTypeSelector value={tipoHora} onChange={setTipoHora} />
           </div>
 
           <div className="space-y-2">
-            <Label>Descrição do Serviço</Label>
+            <Label className="text-xs font-bold uppercase text-gray-muted">Descrição (Opcional)</Label>
             <Textarea
               {...register('descricao')}
-              placeholder="Descreva o serviço realizado..."
+              placeholder="Detalhes sobre o serviço..."
               rows={3}
+              className="rounded-xl border-gray-border resize-none"
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Fotos</Label>
+            <Label className="text-xs font-bold uppercase text-gray-muted">Evidências (Fotos)</Label>
             <CameraCapture
               photos={photos}
               onCapture={handleCapture}
@@ -196,21 +203,21 @@ export function ApontarModal({
             />
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-4">
             <Button
               type="button"
               variant="outline"
-              className="flex-1"
+              className="flex-1 rounded-xl h-12 font-bold text-gray-muted"
               onClick={onClose}
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-navy hover:bg-navy-light text-white"
+              className="flex-1 bg-navy hover:bg-navy-light text-white rounded-xl h-12 font-bold shadow-lg shadow-navy/20"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Salvando...' : 'Salvar Apontamento'}
+              {isSubmitting ? 'A guardar...' : 'Confirmar Registo'}
             </Button>
           </div>
         </form>

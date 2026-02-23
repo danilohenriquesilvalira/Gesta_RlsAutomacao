@@ -27,14 +27,14 @@ export default function LoginPage() {
     });
 
     if (authError) {
-      setError('Email ou senha incorretos');
+      setError('E-mail ou palavra-passe incorretos');
       setLoading(false);
       return;
     }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      setError('Erro ao obter usuário');
+      setError('Erro ao obter utilizador');
       setLoading(false);
       return;
     }
@@ -55,31 +55,21 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-bg px-4">
       <Card className="w-full max-w-md shadow-lg border-gray-border">
-        <CardHeader className="text-center space-y-2">
-          <div className="mx-auto w-14 h-14 rounded-xl bg-navy flex items-center justify-center mb-2">
-            <svg
-              className="w-8 h-8 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
+        <CardHeader className="text-center space-y-3 pb-6">
+          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-xl shadow-emerald-200">
+            <span className="text-lg font-black text-white tracking-wider">RLS</span>
           </div>
-          <CardTitle className="text-2xl font-bold text-navy">FieldSync</CardTitle>
-          <CardDescription className="text-gray-muted">
-            Timesheet para Automação Industrial
-          </CardDescription>
+          <div>
+            <CardTitle className="text-xl font-bold text-navy">Automação Industrial</CardTitle>
+            <CardDescription className="text-xs font-medium text-emerald-600 tracking-widest uppercase mt-1">
+              Portal de Gestão
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">E-mail</Label>
               <Input
                 id="email"
                 type="email"
@@ -90,7 +80,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password">Palavra-passe</Label>
               <Input
                 id="password"
                 type="password"
@@ -108,7 +98,7 @@ export default function LoginPage() {
               className="w-full bg-navy hover:bg-navy-light text-white"
               disabled={loading}
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? 'A entrar...' : 'Entrar'}
             </Button>
           </form>
         </CardContent>

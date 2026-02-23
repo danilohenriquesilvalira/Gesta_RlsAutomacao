@@ -69,6 +69,33 @@ export function useCreateUser() {
   });
 }
 
+export function useUpdateTecnico() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      fullName,
+      role,
+    }: {
+      id: string;
+      fullName: string;
+      role: Role;
+    }) => {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: fullName, role })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tecnicos'] });
+      queryClient.invalidateQueries({ queryKey: ['tecnicos-horas'] });
+    },
+  });
+}
+
 export function useTecnico(id: string) {
   return useQuery({
     queryKey: ['tecnicos', id],

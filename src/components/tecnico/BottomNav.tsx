@@ -2,6 +2,7 @@
 
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import { Home, ListChecks, Building2, Wallet, User } from 'lucide-react'
 
 interface BottomNavProps {
   currentPath: string
@@ -9,99 +10,36 @@ interface BottomNavProps {
 
 const tabs = [
   {
-    label: 'Inicio',
+    label: 'Início',
     href: '/inicio',
-    icon: (active: boolean) => (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={cn('size-6', active ? 'text-accent-blue' : 'text-gray-muted')}
-      >
-        <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
-        <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      </svg>
-    ),
+    icon: (active: boolean) => <Home className={cn('w-5 h-5', active ? 'text-accent-blue' : 'text-gray-muted')} />,
   },
   {
-    label: 'Apontamentos',
+    label: 'Apontar',
     href: '/meus-apontamentos',
-    icon: (active: boolean) => (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={cn('size-6', active ? 'text-accent-blue' : 'text-gray-muted')}
-      >
-        <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
-        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-        <path d="M12 11h4" />
-        <path d="M12 16h4" />
-        <path d="M8 11h.01" />
-        <path d="M8 16h.01" />
-      </svg>
-    ),
+    icon: (active: boolean) => <ListChecks className={cn('w-5 h-5', active ? 'text-accent-blue' : 'text-gray-muted')} />,
   },
   {
-    label: 'Fotos',
-    href: '/fotos',
-    icon: (active: boolean) => (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={cn('size-6', active ? 'text-accent-blue' : 'text-gray-muted')}
-      >
-        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-        <circle cx="12" cy="13" r="3" />
-      </svg>
-    ),
+    label: 'Obras',
+    href: '/minhas-obras',
+    icon: (active: boolean) => <Building2 className={cn('w-5 h-5', active ? 'text-accent-blue' : 'text-gray-muted')} />,
+  },
+  {
+    label: 'Despesas',
+    href: '/minhas-despesas',
+    icon: (active: boolean) => <Wallet className={cn('w-5 h-5', active ? 'text-accent-blue' : 'text-gray-muted')} />,
   },
   {
     label: 'Perfil',
     href: '/perfil',
-    icon: (active: boolean) => (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={cn('size-6', active ? 'text-accent-blue' : 'text-gray-muted')}
-      >
-        <circle cx="12" cy="8" r="5" />
-        <path d="M20 21a8 8 0 0 0-16 0" />
-      </svg>
-    ),
+    icon: (active: boolean) => <User className={cn('w-5 h-5', active ? 'text-accent-blue' : 'text-gray-muted')} />,
   },
 ]
 
 export function BottomNav({ currentPath }: BottomNavProps) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-border bg-white lg:hidden">
-      <div className="mx-auto flex h-16 max-w-lg items-center justify-around">
+      <div className="flex h-14 items-center justify-around">
         {tabs.map((tab) => {
           const isActive =
             currentPath === tab.href ||
@@ -111,15 +49,10 @@ export function BottomNav({ currentPath }: BottomNavProps) {
             <Link
               key={tab.href}
               to={tab.href}
-              className="flex flex-col items-center gap-0.5 px-3 py-1"
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-1"
             >
               {tab.icon(isActive)}
-              <span
-                className={cn(
-                  'text-[10px] font-medium',
-                  isActive ? 'text-accent-blue' : 'text-gray-muted'
-                )}
-              >
+              <span className={cn('text-[8px] font-medium leading-none', isActive ? 'text-accent-blue' : 'text-gray-muted')}>
                 {tab.label}
               </span>
             </Link>

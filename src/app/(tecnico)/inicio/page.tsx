@@ -1,11 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { HeroTimer } from '@/components/tecnico/HeroTimer';
 import { EntryCard } from '@/components/tecnico/EntryCard';
 import { ApontarModal } from '@/components/shared/ApontarModal';
 import { useAuth } from '@/hooks/useAuth';
-import { useTimer } from '@/hooks/useTimer';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import {
   useApontamentosHoje,
@@ -14,12 +12,12 @@ import {
 } from '@/lib/queries/apontamentos';
 import { useObras } from '@/lib/queries/obras';
 import { saveOfflineApontamento } from '@/lib/offline/indexeddb';
-import { calcTotalHoras } from '@/lib/utils/calcHoras';
+import { Button } from '@/components/ui/button';
+import { Clock, PlusCircle, Calendar, TrendingUp } from 'lucide-react';
 import type { TipoHora } from '@/types';
 
 export default function InicioPage() {
   const { profile } = useAuth();
-  const timer = useTimer();
   const { isOnline, refreshCount } = useOfflineSync();
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -36,10 +34,8 @@ export default function InicioPage() {
   });
 
   // Stats
-  const now = new Date();
-  const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const horasMes = apontamentosSemana.reduce((s, a) => s + (a.total_horas ?? 0), 0);
-  const horasExtrasMes = apontamentosSemana
+  const horasSemana = apontamentosSemana.reduce((s, a) => s + (a.total_horas ?? 0), 0);
+  const horasExtrasSemana = apontamentosSemana
     .filter((a) => a.tipo_hora !== 'normal')
     .reduce((s, a) => s + (a.total_horas ?? 0), 0);
   const horasHoje = apontamentosHoje.reduce((s, a) => s + (a.total_horas ?? 0), 0);
@@ -79,136 +75,89 @@ export default function InicioPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col space-y-4 lg:space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-navy">
-          Olá, {profile?.full_name?.split(' ')[0]}
-        </h1>
-        <p className="text-sm text-gray-muted">
-          {new Date().toLocaleDateString('pt-BR', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          })}
-        </p>
-      </div>
-
-      {/* Timer */}
-      <HeroTimer
-        isRunning={timer.isRunning}
-        elapsed={timer.formatted}
-        onStop={() => {
-          timer.stop();
-          setModalOpen(true);
-        }}
-        onStart={timer.start}
-      />
-
-      {/* Stats + Quick Action row on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 lg:gap-4">
-        <div className="bg-white rounded-xl border border-gray-border p-3 lg:p-4 text-center">
-          <p className="text-xs text-gray-muted">Hoje</p>
-          <p className="text-lg lg:text-xl font-bold text-navy">{horasHoje.toFixed(1)}h</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-border p-3 lg:p-4 text-center">
-          <p className="text-xs text-gray-muted">Semana</p>
-          <p className="text-lg lg:text-xl font-bold text-accent-blue">
-            {horasMes.toFixed(1)}h
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-border p-3 lg:p-4 text-center">
-          <p className="text-xs text-gray-muted">Extras</p>
-          <p className="text-lg lg:text-xl font-bold text-warning">
-            {horasExtrasMes.toFixed(1)}h
-          </p>
-        </div>
-        {/* Quick Action inline on desktop */}
-        <button
-          onClick={() => setModalOpen(true)}
-          className="bg-navy hover:bg-navy-light text-white rounded-xl py-3 lg:py-0 font-semibold transition-colors"
-        >
-          + Apontar Horas
-        </button>
-      </div>
-
-      {/* Today's entries + Week table side by side on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-gray-text mb-3">
-            Serviços de Hoje
-          </h2>
+          <h1 className="text-xl font-bold text-navy">
+            Olá, {profile?.full_name?.split(' ')[0]}
+          </h1>
+          <p className="text-sm text-gray-muted first-letter:uppercase">
+            {new Date().toLocaleDateString('pt-PT', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+            })}
+          </p>
+        </div>
+      </div>
+
+      {/* Manual Registration Big Button/Card */}
+      <div
+        onClick={() => setModalOpen(true)}
+        className="shrink-0 cursor-pointer group bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-3xl p-6 lg:p-10 shadow-xl shadow-emerald-200 flex flex-col items-center justify-center text-center space-y-3 transition-all hover:scale-[1.02] active:scale-[0.98]"
+      >
+        <div className="h-16 w-16 lg:h-20 lg:w-20 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-md">
+          <PlusCircle className="w-8 h-8 lg:w-10 lg:h-10 text-white" />
+        </div>
+        <div>
+          <h2 className="text-xl lg:text-2xl font-black text-white">Registar Horas</h2>
+          <p className="text-emerald-50 text-xs lg:text-sm font-medium opacity-80 uppercase tracking-widest">Clique para iniciar registo manual</p>
+        </div>
+      </div>
+
+      {/* Stats Cards Row */}
+      <div className="shrink-0 grid grid-cols-3 gap-3">
+        <div className="bg-white rounded-2xl border border-gray-border p-3 flex flex-col items-center justify-center shadow-sm">
+          <Clock className="w-4 h-4 text-accent-blue mb-1" />
+          <p className="text-[10px] text-gray-muted uppercase font-bold tracking-tighter">Hoje</p>
+          <p className="text-base font-black text-navy">{horasHoje.toFixed(1)}h</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-border p-3 flex flex-col items-center justify-center shadow-sm">
+          <Calendar className="w-4 h-4 text-emerald-600 mb-1" />
+          <p className="text-[10px] text-gray-muted uppercase font-bold tracking-tighter">Semana</p>
+          <p className="text-base font-black text-navy">{horasSemana.toFixed(1)}h</p>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-border p-3 flex flex-col items-center justify-center shadow-sm">
+          <TrendingUp className="w-4 h-4 text-warning mb-1" />
+          <p className="text-[10px] text-gray-muted uppercase font-bold tracking-tighter">Extras</p>
+          <p className="text-base font-black text-navy">{horasExtrasSemana.toFixed(1)}h</p>
+        </div>
+      </div>
+
+      {/* History section */}
+      <div className="flex-1 flex flex-col min-h-0 bg-white rounded-3xl border border-gray-border shadow-sm overflow-hidden mb-2">
+        <div className="shrink-0 p-4 border-b border-gray-border bg-gray-50/30 flex items-center justify-between">
+          <h2 className="text-sm font-black text-navy uppercase tracking-wider">Histórico de Hoje</h2>
+          <span className="text-[10px] font-bold text-gray-muted bg-gray-100 px-2 py-0.5 rounded-full">{apontamentosHoje.length} registos</span>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {apontamentosHoje.length === 0 ? (
-            <p className="text-sm text-gray-muted text-center py-8">
-              Nenhum apontamento hoje
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {apontamentosHoje.map((apt) => (
-                <EntryCard
-                  key={apt.id}
-                  apontamento={{
-                    id: apt.id,
-                    obra_codigo: apt.obra?.codigo ?? '',
-                    obra_nome: apt.obra?.nome ?? '',
-                    tipo_servico: apt.tipo_servico,
-                    hora_entrada: apt.hora_entrada,
-                    hora_saida: apt.hora_saida ?? '',
-                    total_horas: apt.total_horas ?? 0,
-                    tipo_hora: apt.tipo_hora,
-                    status: apt.status,
-                    fotos_count: apt.fotos?.length ?? 0,
-                  }}
-                />
-              ))}
+            <div className="h-full flex flex-col items-center justify-center text-center opacity-40 py-10">
+              <PlusCircle className="w-10 h-10 text-gray-muted mb-2" />
+              <p className="text-sm font-medium text-gray-muted">Ainda não realizou<br />nenhum registo hoje.</p>
             </div>
+          ) : (
+            apontamentosHoje.map((apt) => (
+              <EntryCard
+                key={apt.id}
+                apontamento={{
+                  id: apt.id,
+                  obra_codigo: apt.obra?.codigo ?? '',
+                  obra_nome: apt.obra?.nome ?? '',
+                  tipo_servico: apt.tipo_servico,
+                  hora_entrada: apt.hora_entrada,
+                  hora_saida: apt.hora_saida ?? '',
+                  total_horas: apt.total_horas ?? 0,
+                  tipo_hora: apt.tipo_hora,
+                  status: apt.status,
+                  fotos_count: apt.fotos?.length ?? 0,
+                }}
+              />
+            ))
           )}
         </div>
-
-        {/* Week table */}
-        {apontamentosSemana.length > 0 && (
-          <div>
-            <h2 className="text-sm font-semibold text-gray-text mb-3">
-              Esta Semana
-            </h2>
-            <div className="bg-white rounded-xl border border-gray-border overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-border bg-gray-bg">
-                    <th className="text-left px-3 py-2 text-gray-muted font-medium">
-                      Data
-                    </th>
-                    <th className="text-left px-3 py-2 text-gray-muted font-medium">
-                      Obra
-                    </th>
-                    <th className="text-right px-3 py-2 text-gray-muted font-medium">
-                      Horas
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {apontamentosSemana.map((apt) => (
-                    <tr key={apt.id} className="border-b border-gray-border last:border-0">
-                      <td className="px-3 py-2 text-gray-text">
-                        {new Date(apt.data_apontamento + 'T00:00:00').toLocaleDateString('pt-BR', {
-                          weekday: 'short',
-                          day: '2-digit',
-                        })}
-                      </td>
-                      <td className="px-3 py-2 text-navy font-medium">
-                        {apt.obra?.codigo}
-                      </td>
-                      <td className="px-3 py-2 text-right font-semibold text-navy">
-                        {(apt.total_horas ?? 0).toFixed(1)}h
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Apontar Modal */}

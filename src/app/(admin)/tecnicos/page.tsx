@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { TecnicosTable } from '@/components/admin/TecnicosTable';
+import type { TecnicoRow } from '@/components/admin/TecnicosTable';
 import { ApontamentosTable } from '@/components/admin/ApontamentosTable';
 import { CreateUserModal } from '@/components/admin/CreateUserModal';
+import { EditTecnicoModal } from '@/components/admin/EditTecnicoModal';
 import { useTecnicosComHoras } from '@/lib/queries/tecnicos';
 import { useApontamentos, useUpdateApontamentoStatus } from '@/lib/queries/apontamentos';
 import { Button } from '@/components/ui/button';
@@ -18,6 +20,7 @@ export default function TecnicosPage() {
   const { data: tecnicos = [] } = useTecnicosComHoras();
   const [selectedTecnico, setSelectedTecnico] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingTecnico, setEditingTecnico] = useState<TecnicoRow | null>(null);
   const { data: tecnicoApts = [] } = useApontamentos(
     selectedTecnico ? { tecnicoId: selectedTecnico } : undefined
   );
@@ -47,10 +50,17 @@ export default function TecnicosPage() {
         onClose={() => setIsAddModalOpen(false)}
       />
 
+      <EditTecnicoModal
+        open={!!editingTecnico}
+        tecnico={editingTecnico}
+        onClose={() => setEditingTecnico(null)}
+      />
+
       <div className="rounded-xl border border-gray-border bg-white overflow-x-auto">
         <TecnicosTable
           tecnicos={tecnicos}
           onSelect={(id) => setSelectedTecnico(id)}
+          onEdit={(tec) => setEditingTecnico(tec)}
         />
       </div>
 

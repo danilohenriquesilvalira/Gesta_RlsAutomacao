@@ -20,14 +20,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { useCreateUser } from '@/lib/queries/tecnicos';
+import { useUpdateTecnico } from '@/lib/queries/tecnicos';
 import { toast } from 'sonner';
 import type { Role } from '@/types';
+import type { TecnicoRow } from '@/components/admin/TecnicosTable';
 
 const schema = z.object({
     fullName: z.string().min(1, 'O nome é obrigatório').min(3, 'O nome deve ter pelo menos 3 caracteres'),
-    email: z.string().min(1, 'O e-mail é obrigatório').email('Introduza um e-mail válido'),
-    password: z.string().min(1, 'A palavra-passe é obrigatória').min(6, 'A palavra-passe deve ter pelo menos 6 caracteres'),
     role: z.enum(['admin', 'tecnico'] as const, {
         required_error: 'Selecione o nível de acesso',
     }),
@@ -35,13 +34,14 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-interface CreateUserModalProps {
+interface EditTecnicoModalProps {
     open: boolean;
     onClose: () => void;
+    tecnico: TecnicoRow | null;
 }
 
-export function CreateUserModal({ open, onClose }: CreateUserModalProps) {
-    const createUser = useCreateUser();
+export function EditTecnicoModal({ open, onClose, tecnico }: EditTecnicoModalProps) {
+    const updateTecnico = useUpdateTecnico();
     const [role, setRole] = useState<Role>('tecnico');
 
     const {
@@ -55,48 +55,48 @@ export function CreateUserModal({ open, onClose }: CreateUserModalProps) {
         defaultValues: {
             role: 'tecnico',
             fullName: '',
-            email: '',
-            password: '',
         },
     });
 
-    // Logging errors to console to help debug
     useEffect(() => {
-        if (Object.keys(errors).length > 0) {
-            console.log('Form errors:', errors);
+        if (tecnico) {
+            const r = (tecnico.role as Role) || 'tecnico';
+            setRole(r);
+            reset({ fullName: tecnico.full_name, role: r });
         }
-    }, [errors]);
+    }, [tecnico, reset]);
 
     async function handleOnSubmit(data: FormData) {
+        if (!tecnico) return;
         try {
-            console.log('Attempting to create user:', data);
-            await createUser.mutateAsync(data);
-            toast.success('Utilizador criado com sucesso!');
-            reset();
+            await updateTecnico.mutateAsync({
+                id: tecnico.id,
+                fullName: data.fullName,
+                role: data.role,
+            });
+            toast.success('Técnico atualizado com sucesso!');
             onClose();
         } catch (error: any) {
-            console.error('Create user error:', error);
-            toast.error(error.message || 'Erro ao criar utilizador');
+            toast.error(error.message || 'Erro ao atualizar técnico');
         }
     }
 
+    function handleClose() {
+        onClose();
+    }
+
     return (
-        <Dialog open={open} onOpenChange={(o) => {
-            if (!o) {
-                reset();
-                onClose();
-            }
-        }}>
+        <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
             <DialogContent className="max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-navy font-bold">Novo Utilizador</DialogTitle>
+                    <DialogTitle className="text-navy font-bold">Editar Técnico</DialogTitle>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit(handleOnSubmit)} className="space-y-4 pt-4">
                     <div className="space-y-2">
-                        <Label htmlFor="fullName">Nome Completo</Label>
+                        <Label htmlFor="edit-fullName">Nome Completo</Label>
                         <Input
-                            id="fullName"
+                            id="edit-fullName"
                             placeholder="Ex: João Silva"
                             {...register('fullName')}
                             className={errors.fullName ? 'border-error' : ''}
@@ -107,37 +107,9 @@ export function CreateUserModal({ open, onClose }: CreateUserModalProps) {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="email">E-mail</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            placeholder="tecnico@email.com"
-                            {...register('email')}
-                            className={errors.email ? 'border-error' : ''}
-                        />
-                        {errors.email && (
-                            <p className="text-xs text-error font-medium">{errors.email.message}</p>
-                        )}
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="password">Palavra-passe Inicial</Label>
-                        <Input
-                            id="password"
-                            type="password"
-                            placeholder="••••••••"
-                            {...register('password')}
-                            className={errors.password ? 'border-error' : ''}
-                        />
-                        {errors.password && (
-                            <p className="text-xs text-error font-medium">{errors.password.message}</p>
-                        )}
-                    </div>
-
-                    <div className="space-y-2">
                         <Label>Tipo de Utilizador (Role)</Label>
                         <Select
-                            defaultValue="tecnico"
+                            value={role}
                             onValueChange={(v) => {
                                 setRole(v as Role);
                                 setValue('role', v as Role, { shouldValidate: true });
@@ -161,17 +133,17 @@ export function CreateUserModal({ open, onClose }: CreateUserModalProps) {
                             type="button"
                             variant="outline"
                             className="flex-1"
-                            onClick={onClose}
-                            disabled={createUser.isPending}
+                            onClick={handleClose}
+                            disabled={updateTecnico.isPending}
                         >
                             Cancelar
                         </Button>
                         <Button
                             type="submit"
                             className="flex-1 bg-navy hover:bg-navy-light text-white"
-                            disabled={createUser.isPending}
+                            disabled={updateTecnico.isPending}
                         >
-                            {createUser.isPending ? 'A criar...' : 'Criar Utilizador'}
+                            {updateTecnico.isPending ? 'A guardar...' : 'Guardar Alterações'}
                         </Button>
                     </div>
                 </form>

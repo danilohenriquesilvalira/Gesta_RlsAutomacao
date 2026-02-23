@@ -148,10 +148,10 @@ function formatTimestamp(timestamp: string): string {
   const diffHours = Math.floor(diffMs / 3600000)
 
   if (diffMinutes < 1) return 'Agora mesmo'
-  if (diffMinutes < 60) return `${diffMinutes}min atras`
-  if (diffHours < 24) return `${diffHours}h atras`
+  if (diffMinutes < 60) return `${diffMinutes}min atrás`
+  if (diffHours < 24) return `${diffHours}h atrás`
 
-  return date.toLocaleDateString('pt-BR', {
+  return date.toLocaleDateString('pt-PT', {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',

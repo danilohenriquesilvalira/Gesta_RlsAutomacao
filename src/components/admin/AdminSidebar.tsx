@@ -14,7 +14,7 @@ interface AdminSidebarProps {
 
 const navLinks = [
   {
-    label: 'Dashboard',
+    label: 'Painel',
     path: '/dashboard',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -50,6 +50,15 @@ const navLinks = [
     ),
   },
   {
+    label: 'Despesas',
+    path: '/despesas',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" />
+      </svg>
+    ),
+  },
+  {
     label: 'Relatórios',
     path: '/relatorios',
     icon: (
@@ -78,13 +87,14 @@ export function AdminSidebar({
     >
       {/* Logo */}
       <div className={`flex items-center h-16 px-4 ${collapsed ? 'justify-center' : 'gap-3'}`}>
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-blue">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-          </svg>
+        <div className="shrink-0 flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-900/40">
+          <span className="text-[11px] font-black text-white tracking-wider">RLS</span>
         </div>
         {!collapsed && (
-          <span className="text-base font-bold tracking-tight">FieldSync</span>
+          <div className="flex flex-col leading-none">
+            <span className="text-[13px] font-bold text-white tracking-wide">Automação</span>
+            <span className="text-[10px] font-medium text-emerald-400 tracking-widest uppercase mt-0.5">Industrial</span>
+          </div>
         )}
       </div>
 
@@ -127,7 +137,7 @@ export function AdminSidebar({
               : <path d="m15 18-6-6 6-6" />
             }
           </svg>
-          {!collapsed && <span className="text-xs font-medium">Recolher</span>}
+          {!collapsed && <span className="text-xs font-medium">Ocultar menu</span>}
         </button>
       </div>
 

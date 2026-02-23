@@ -26,7 +26,7 @@ export default function TecnicoLayout() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-bg">
         <div className="w-8 h-8 border-4 border-navy border-t-transparent rounded-full animate-spin" />
-        <p className="ml-3 text-gray-muted text-sm">Carregando...</p>
+        <p className="ml-3 text-gray-muted text-sm font-medium">A carregar...</p>
       </div>
     );
   }
@@ -47,14 +47,14 @@ export default function TecnicoLayout() {
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-h-screen min-w-0">
         {/* Mobile top bar */}
-        <header className="sticky top-0 z-30 flex items-center gap-2 bg-white border-b border-gray-border px-4 h-14 lg:hidden">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-navy">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
+        <header className="sticky top-0 z-30 flex items-center gap-3 bg-white border-b border-gray-border px-4 h-14 lg:hidden">
+          <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-md">
+            <span className="text-[10px] font-black text-white tracking-wider">RLS</span>
           </div>
-          <span className="text-base font-bold text-navy">FieldSync</span>
+          <div className="flex flex-col leading-none">
+            <span className="text-[13px] font-bold text-navy tracking-wide">Automação</span>
+            <span className="text-[10px] font-medium text-emerald-600 tracking-widest uppercase mt-0.5">Industrial</span>
+          </div>
         </header>
 
         {/* Page content */}

@@ -6,10 +6,13 @@ import ApontamentosPage from './app/(admin)/apontamentos/page';
 import ObrasPage from './app/(admin)/obras/page';
 import TecnicosPage from './app/(admin)/tecnicos/page';
 import RelatoriosPage from './app/(admin)/relatorios/page';
+import AdminDespesasPage from './app/(admin)/despesas/page';
 import InicioPage from './app/(tecnico)/inicio/page';
 import MeusApontamentosPage from './app/(tecnico)/meus-apontamentos/page';
 import FotosPage from './app/(tecnico)/fotos/page';
 import PerfilPage from './app/(tecnico)/perfil/page';
+import MinhasDespesasPage from './app/(tecnico)/despesas/page';
+import MinhasObrasPage from './app/(tecnico)/obras/page';
 import AppLayout from './components/shared/AppLayout';
 
 function App() {
@@ -30,12 +33,15 @@ function App() {
                     <Route path="/obras" element={<ObrasPage />} />
                     <Route path="/tecnicos" element={<TecnicosPage />} />
                     <Route path="/relatorios" element={<RelatoriosPage />} />
+                    <Route path="/despesas" element={<AdminDespesasPage />} />
 
                     {/* Técnico Routes */}
                     <Route path="/inicio" element={<InicioPage />} />
                     <Route path="/meus-apontamentos" element={<MeusApontamentosPage />} />
                     <Route path="/fotos" element={<FotosPage />} />
                     <Route path="/perfil" element={<PerfilPage />} />
+                    <Route path="/minhas-despesas" element={<MinhasDespesasPage />} />
+                    <Route path="/minhas-obras" element={<MinhasObrasPage />} />
                 </Route>
             </Routes>
             <Toaster position="top-right" richColors />

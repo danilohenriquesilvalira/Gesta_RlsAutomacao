@@ -42,8 +42,13 @@ export interface Obra {
   status: ObraStatus;
   progresso: number;
   prazo: string | null;
+  localizacao: string | null;
+  lat: number | null;
+  lng: number | null;
   created_by: string | null;
   created_at: string;
+  // joined
+  executante?: { full_name: string } | null;
 }
 
 export interface Apontamento {
@@ -87,4 +92,62 @@ export interface OfflineApontamento {
   data_apontamento: string;
   fotos_base64: string[];
   created_at: string;
+}
+
+// ── Despesas ──────────────────────────────────────────────────────────────────
+
+export type TipoDespesa =
+  | 'alojamento'
+  | 'alimentação'
+  | 'transporte'
+  | 'combustível'
+  | 'material'
+  | 'outro';
+
+export type DespesaStatus = 'pendente' | 'aprovada' | 'rejeitada';
+
+export const TIPOS_DESPESA: TipoDespesa[] = [
+  'alojamento',
+  'alimentação',
+  'transporte',
+  'combustível',
+  'material',
+  'outro',
+];
+
+export interface ReciboDespesa {
+  id: string;
+  despesa_id: string;
+  storage_path: string;
+  url: string;
+  tipo_ficheiro: 'imagem' | 'pdf';
+  created_at: string;
+}
+
+export interface Despesa {
+  id: string;
+  tecnico_id: string;
+  obra_id: string | null;
+  tipo_despesa: TipoDespesa;
+  descricao: string | null;
+  valor: number;
+  data_despesa: string;
+  status: DespesaStatus;
+  created_at: string;
+  // joined
+  tecnico?: Profile;
+  obra?: Obra;
+  recibos?: ReciboDespesa[];
+}
+
+export interface Deposito {
+  id: string;
+  tecnico_id: string;
+  admin_id: string;
+  valor: number;
+  descricao: string | null;
+  data_deposito: string;
+  created_at: string;
+  // joined
+  tecnico?: Profile;
 }

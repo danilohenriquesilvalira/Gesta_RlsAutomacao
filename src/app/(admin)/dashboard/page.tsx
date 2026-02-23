@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { KpiCard } from '@/components/admin/KpiCard';
 import { ApontamentosTable } from '@/components/admin/ApontamentosTable';
 import { TecnicosTable } from '@/components/admin/TecnicosTable';
@@ -9,6 +9,9 @@ import { useApontamentos, useUpdateApontamentoStatus } from '@/lib/queries/apont
 import { useTecnicosComHoras } from '@/lib/queries/tecnicos';
 import { useObras } from '@/lib/queries/obras';
 import { createClient } from '@/lib/supabase/client';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Search, Clock, TrendingUp, Users, Building2, Activity, ListChecks } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -17,7 +20,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
 
 export default function DashboardPage() {
@@ -29,6 +31,10 @@ export default function DashboardPage() {
     Array<{ id: string; type: string; description: string; timestamp: string }>
   >([]);
 
+  // Search states
+  const [searchTecnico, setSearchTecnico] = useState('');
+  const [searchApontamento, setSearchApontamento] = useState('');
+
   // KPI calculations
   const totalHoras = apontamentos.reduce((sum, a) => sum + (a.total_horas ?? 0), 0);
   const horasExtras = apontamentos
@@ -37,8 +43,8 @@ export default function DashboardPage() {
   const tecnicosAtivos = tecnicos.length;
   const obrasAtivas = obras.filter((o) => o.status === 'ativa').length;
 
-  // Chart data - last 4 weeks
-  const chartData = (() => {
+  // Chart data
+  const chartData = useMemo(() => {
     const weeks: { name: string; normal: number; extra: number }[] = [];
     for (let i = 3; i >= 0; i--) {
       const end = new Date();
@@ -60,148 +66,165 @@ export default function DashboardPage() {
       });
     }
     return weeks;
-  })();
+  }, [apontamentos]);
 
-  // Realtime feed
+  // Realtime
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
-      .channel('apontamentos-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'apontamentos' },
-        (payload) => {
-          const newActivity = {
-            id: crypto.randomUUID(),
-            type: payload.eventType,
-            description:
-              payload.eventType === 'INSERT'
-                ? 'Novo apontamento criado'
-                : payload.eventType === 'UPDATE'
-                ? 'Apontamento atualizado'
-                : 'Apontamento removido',
-            timestamp: new Date().toISOString(),
-          };
-          setActivities((prev) => [newActivity, ...prev].slice(0, 20));
-        }
-      )
+      .channel('dashboard-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'apontamentos' }, () => { })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Today's appointments
+  // Filtered data
   const today = new Date().toISOString().split('T')[0];
-  const apontamentosHoje = apontamentos.filter(
-    (a) => a.data_apontamento === today
-  );
+  const filteredTecnicos = useMemo(() => {
+    return tecnicos.filter(t =>
+      t.full_name.toLowerCase().includes(searchTecnico.toLowerCase()) ||
+      (t.obraAtual && t.obraAtual.toLowerCase().includes(searchTecnico.toLowerCase()))
+    );
+  }, [tecnicos, searchTecnico]);
+
+  const filteredApontamentosHoje = useMemo(() => {
+    return apontamentos
+      .filter(a => a.data_apontamento === today)
+      .filter(a =>
+        a.tecnico?.full_name.toLowerCase().includes(searchApontamento.toLowerCase()) ||
+        a.obra?.nome.toLowerCase().includes(searchApontamento.toLowerCase()) ||
+        a.tipo_servico.toLowerCase().includes(searchApontamento.toLowerCase())
+      );
+  }, [apontamentos, searchApontamento, today]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-navy">Dashboard</h1>
-        <p className="text-gray-muted text-xs sm:text-sm">
-          Visão geral do sistema
-        </p>
+    <div className="h-full flex flex-col space-y-3 lg:space-y-4 animate-in fade-in duration-500">
+      <div className="shrink-0 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-navy rounded-lg lg:hidden">
+            <Activity className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-navy tracking-tight">Painel Administrativo</h1>
+            <p className="text-gray-muted text-[11px] sm:text-xs">Operação em tempo real</p>
+          </div>
+        </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* KPIs with Lucide Icons */}
+      <div className="shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard
-          title="Total de Horas"
+          title="Total Horas"
           value={`${totalHoras.toFixed(1)}h`}
-          description="Este mês"
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          }
-          color="bg-accent-blue"
+          icon={<Clock className="w-4 h-4" />}
+          color="bg-accent-blue/10 text-accent-blue"
         />
         <KpiCard
-          title="Horas Extras"
+          title="Extras"
           value={`${horasExtras.toFixed(1)}h`}
-          description="Este mês"
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-          }
-          color="bg-warning"
+          icon={<TrendingUp className="w-4 h-4" />}
+          color="bg-warning/10 text-orange-600"
         />
         <KpiCard
-          title="Técnicos Ativos"
+          title="Técnicos"
           value={tecnicosAtivos}
-          description="Cadastrados"
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          }
-          color="bg-success"
+          icon={<Users className="w-4 h-4" />}
+          color="bg-emerald-50 text-emerald-600"
         />
         <KpiCard
-          title="Obras Ativas"
+          title="Obras"
           value={obrasAtivas}
-          description="Em andamento"
-          icon={
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-          }
-          color="bg-purple-500"
+          icon={<Building2 className="w-4 h-4" />}
+          color="bg-purple-50 text-purple-600"
         />
       </div>
 
-      {/* Chart + Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-border p-4 sm:p-6">
-          <h2 className="text-base sm:text-lg font-bold text-navy mb-4">
-            Horas por Semana
-          </h2>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e4e8f0" />
-              <XAxis dataKey="name" tick={{ fill: '#8896ae', fontSize: 12 }} />
-              <YAxis tick={{ fill: '#8896ae', fontSize: 12 }} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="normal" name="Horas Normais" fill="#2563eb" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="extra" name="Horas Extras" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      {/* Graphs */}
+      <div className="shrink-0 grid grid-cols-1 lg:grid-cols-3 gap-3 h-[220px]">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-border p-3 flex flex-col shadow-sm">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-navy/70" />
+              <h2 className="text-[13px] font-bold text-navy">Produtividade Semanal</h2>
+            </div>
+            <div className="flex gap-3 text-[10px] font-semibold text-gray-muted">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-blue-600" /> Normal</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-orange-500" /> Extra</span>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '11px' }} />
+                <Bar dataKey="normal" fill="#2563eb" radius={[3, 3, 0, 0]} barSize={18} />
+                <Bar dataKey="extra" fill="#f59e0b" radius={[3, 3, 0, 0]} barSize={18} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-
-        <div className="bg-white rounded-xl border border-gray-border p-4 sm:p-6">
-          <h2 className="text-base sm:text-lg font-bold text-navy mb-4">
-            Atividades Recentes
-          </h2>
-          <ActivityFeed activities={activities} />
+        <div className="bg-white rounded-xl border border-gray-border p-3 flex flex-col shadow-sm hidden lg:flex">
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <Activity className="w-4 h-4 text-navy/70" />
+            <h2 className="text-[13px] font-bold text-navy">Monitor Fluxo</h2>
+          </div>
+          <ScrollArea className="flex-1">
+            <ActivityFeed activities={activities} />
+          </ScrollArea>
         </div>
       </div>
 
-      {/* Técnicos */}
-      <div>
-        <h2 className="text-base sm:text-lg font-bold text-navy mb-4">Técnicos</h2>
-        <div className="rounded-xl border border-gray-border bg-white overflow-x-auto">
-          <TecnicosTable tecnicos={tecnicos} />
+      {/* Tables Section */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-3 min-h-0 pb-2">
+        {/* Tecnicos Section */}
+        <div className="flex flex-col min-h-0 bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden">
+          <div className="shrink-0 flex items-center justify-between p-3 border-b border-gray-border bg-gray-50/30">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-navy/70" />
+              <h2 className="text-[13px] font-bold text-navy">Desempenho da Equipa</h2>
+            </div>
+            <div className="relative w-40 sm:w-48">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-muted" />
+              <Input
+                placeholder="Procurar técnico..."
+                className="h-7 pl-8 text-[11px] bg-white border-gray-border rounded-full w-full focus:ring-1 focus:ring-accent-blue"
+                value={searchTecnico}
+                onChange={(e) => setSearchTecnico(e.target.value)}
+              />
+            </div>
+          </div>
+          <ScrollArea className="flex-1">
+            <TecnicosTable tecnicos={filteredTecnicos} />
+          </ScrollArea>
         </div>
-      </div>
 
-      {/* Apontamentos do dia */}
-      <div>
-        <h2 className="text-base sm:text-lg font-bold text-navy mb-4">
-          Apontamentos de Hoje
-        </h2>
-        <div className="rounded-xl border border-gray-border bg-white overflow-x-auto">
-          <ApontamentosTable
-            apontamentos={apontamentosHoje}
-            onAprovar={(id) => updateStatus.mutate({ id, status: 'aprovado' })}
-            onRejeitar={(id) => updateStatus.mutate({ id, status: 'rejeitado' })}
-            showActions
-          />
+        {/* Apontamentos Section */}
+        <div className="flex flex-col min-h-0 bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden">
+          <div className="shrink-0 flex items-center justify-between p-3 border-b border-gray-border bg-gray-50/30">
+            <div className="flex items-center gap-2">
+              <ListChecks className="w-4 h-4 text-navy/70" />
+              <h2 className="text-[13px] font-bold text-navy">Apontamentos de Hoje</h2>
+            </div>
+            <div className="relative w-40 sm:w-48">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-muted" />
+              <Input
+                placeholder="Procurar obra ou serviço..."
+                className="h-7 pl-8 text-[11px] bg-white border-gray-border rounded-full w-full focus:ring-1 focus:ring-accent-blue"
+                value={searchApontamento}
+                onChange={(e) => setSearchApontamento(e.target.value)}
+              />
+            </div>
+          </div>
+          <ScrollArea className="flex-1">
+            <ApontamentosTable
+              apontamentos={filteredApontamentosHoje}
+              onAprovar={(id) => updateStatus.mutate({ id, status: 'aprovado' })}
+              onRejeitar={(id) => updateStatus.mutate({ id, status: 'rejeitado' })}
+              showActions
+            />
+          </ScrollArea>
         </div>
       </div>
     </div>

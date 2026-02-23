@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { WifiOff, RefreshCw, AlertCircle } from 'lucide-react'
 
 interface OfflineBannerProps {
   isOnline: boolean
@@ -24,24 +25,10 @@ export function OfflineBanner({
   // Syncing state
   if (isSyncing) {
     return (
-      <div className="flex items-center justify-center gap-2 rounded-lg bg-success/15 px-4 py-2.5">
-        {/* Spinner */}
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="animate-spin text-success"
-        >
-          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-        </svg>
-        <span className="text-sm font-medium text-success">
-          Sincronizando...
+      <div className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-2.5 mb-4">
+        <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
+        <span className="text-sm font-bold text-emerald-700 uppercase tracking-tight">
+          A sincronizar os seus registos...
         </span>
       </div>
     )
@@ -51,87 +38,47 @@ export function OfflineBanner({
   return (
     <div
       className={cn(
-        'flex items-center justify-between rounded-lg px-4 py-2.5',
-        !isOnline ? 'bg-warning/15' : 'bg-warning/10'
+        'flex items-center justify-between rounded-xl px-4 py-2.5 mb-4 border shadow-sm transition-all',
+        !isOnline
+          ? 'bg-amber-50 border-amber-200'
+          : 'bg-emerald-50 border-emerald-200'
       )}
     >
-      <div className="flex items-center gap-2">
-        {/* Offline / pending icon */}
+      <div className="flex items-center gap-2.5">
         {!isOnline ? (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-warning"
-          >
-            <path d="M12.01 16.5h.005" />
-            <path d="M16.874 7.117a7.963 7.963 0 0 0-2.855-1.679" />
-            <path d="M20.465 3.535a12.97 12.97 0 0 0-5.401-2.96" />
-            <path d="M2 2l20 20" />
-            <path d="M8.476 5.478a7.96 7.96 0 0 0-3.352 1.64" />
-            <path d="M5.124 7.117a7.963 7.963 0 0 0-1.686 2.062" />
-            <path d="M8.644 10.352a5 5 0 0 1 5.757-.353" />
-            <path d="M3.535 3.535a12.971 12.971 0 0 0-2.96 5.401" />
-          </svg>
+          <WifiOff className="w-4 h-4 text-amber-600" />
         ) : (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-warning"
-          >
-            <path d="M12 16v5" />
-            <path d="M16 14v7" />
-            <path d="M20 10v11" />
-            <path d="M4 20v-2" />
-            <path d="M8 18v4" />
-          </svg>
+          <AlertCircle className="w-4 h-4 text-emerald-600" />
         )}
 
-        <span className="text-sm font-medium text-warning">
-          {!isOnline
-            ? `Sem conexao - ${pendingCount} ${pendingCount === 1 ? 'apontamento pendente' : 'apontamentos pendentes'}`
-            : `${pendingCount} ${pendingCount === 1 ? 'apontamento pendente' : 'apontamentos pendentes'}`}
-        </span>
+        <div className="flex flex-col">
+          <span className={cn(
+            "text-xs font-black uppercase tracking-tight",
+            !isOnline ? "text-amber-800" : "text-emerald-800"
+          )}>
+            {!isOnline ? 'Modo Offline' : 'Ligações Pendentes'}
+          </span>
+          <span className={cn(
+            "text-[10px] font-medium leading-tight",
+            !isOnline ? "text-amber-600" : "text-emerald-600"
+          )}>
+            {!isOnline
+              ? `Sem ligação à internet - ${pendingCount} ${pendingCount === 1 ? 'registo guardado localmente' : 'registos guardados localmente'}`
+              : `Tem ${pendingCount} ${pendingCount === 1 ? 'registo pronto' : 'registos prontos'} para ser enviado`}
+          </span>
+        </div>
       </div>
 
       {/* Sync button (only shown when online with pending) */}
       {isOnline && pendingCount > 0 && (
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={onSync}
-          className="h-7 gap-1 px-2 text-xs font-semibold text-warning hover:bg-warning/15 hover:text-warning"
+          className="h-8 gap-2 px-3 rounded-lg text-[10px] font-black uppercase tracking-tighter border-emerald-300 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 transition-colors"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-            <path d="M3 3v5h5" />
-            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-            <path d="M16 16h5v5" />
-          </svg>
-          Sincronizar
+          <RefreshCw className="w-3 h-3" />
+          Sincronizar Agora
         </Button>
       )}
     </div>
