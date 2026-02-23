@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #0f2147;
+    --card: #ffffff;
+    --card-foreground: #0f2147;
+    --popover: #ffffff;
+    --popover-foreground: #0f2147;
+    --primary: #0f2147;
+    --primary-foreground: #ffffff;
+    --secondary: #f8f9fc;
+    --secondary-foreground: #0f2147;
+    --muted: #f8f9fc;
+    --muted-foreground: #8896ae;
+    --accent: #2563eb;
+    --accent-foreground: #ffffff;
+    --destructive: #ef4444;
+    --border: #e4e8f0;
+    --input: #e4e8f0;
+    --ring: #2563eb;
+    --radius: 0.625rem;
+    --font-mulish: "Mulish", sans-serif;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-mulish);
+  }
+}
+
+/* Custom fieldSync utilities/layers if needed */
+.sidebar-transition {
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
