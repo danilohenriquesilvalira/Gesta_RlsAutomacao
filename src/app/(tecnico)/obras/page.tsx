@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useObras, useCreateObra, useUpdateObra, useDeleteObra } from '@/lib/queries/obras';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PageHeader } from '@/components/shared/PageHeader';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import {
   Dialog,
@@ -20,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import type { Obra, ObraStatus } from '@/types';
 import { toast } from 'sonner';
+import { Plus, ChevronLeft, ChevronRight, Building2, CheckCircle2, Clock, Archive } from 'lucide-react';
 
 // ─── Dialog style constants ────────────────────────────────────────────────────
 const sDlg     = 'flex flex-col w-[92vw] sm:w-full sm:max-w-lg max-h-[85vh] sm:max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl border-slate-200 shadow-xl bg-white';
@@ -298,7 +297,8 @@ export default function MinhasObrasPage() {
   const updateObra = useUpdateObra();
   const deleteObra = useDeleteObra();
 
-  const [filter, setFilter] = useState<ObraStatus | 'todas'>('ativa');
+  const [filter, _setFilter] = useState<ObraStatus | 'todas'>('ativa');
+  const setFilter = (v: ObraStatus | 'todas') => { _setFilter(v); setPage(0); };
   const [modalOpen, setModalOpen] = useState(false);
   const [editingObra, setEditingObra] = useState<Obra | null>(null);
   const [form, setForm] = useState<FormData>(emptyForm);
@@ -306,7 +306,24 @@ export default function MinhasObrasPage() {
   const [deleteTarget, setDeleteTarget] = useState<Obra | null>(null);
   const [statusAtual, setStatusAtual] = useState<ObraStatus>('ativa');
 
-  const filtered = filter === 'todas' ? obras : obras.filter((o) => o.status === filter);
+  const ITEMS_PER_PAGE = 6;
+  const [page, setPage] = useState(0);
+
+  const obraAtivas    = useMemo(() => obras.filter(o => o.status === 'ativa').length,     [obras]);
+  const obraPausadas  = useMemo(() => obras.filter(o => o.status === 'pausada').length,   [obras]);
+  const obraConcluidas= useMemo(() => obras.filter(o => o.status === 'concluida').length, [obras]);
+
+  const filteredObras = useMemo(() =>
+    filter === 'todas' ? obras : obras.filter(o => o.status === filter),
+    [obras, filter]
+  );
+  const totalPages = Math.max(1, Math.ceil(filteredObras.length / ITEMS_PER_PAGE));
+  const paginated  = useMemo(() =>
+    filteredObras.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE),
+    [filteredObras, page]
+  );
+  const rangeStart = filteredObras.length === 0 ? 0 : page * ITEMS_PER_PAGE + 1;
+  const rangeEnd   = Math.min((page + 1) * ITEMS_PER_PAGE, filteredObras.length);
 
   function validate() {
     const e: Record<string, string> = {};
@@ -406,76 +423,162 @@ export default function MinhasObrasPage() {
   const isBusy = createObra.isPending || updateObra.isPending;
 
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title="Obras"
-        subtitle="Gerir os seus projetos e obras"
-        actions={
-          <Button onClick={openCreate} className="bg-navy hover:bg-navy-light text-white shrink-0 text-sm">
-            + Nova Obra
-          </Button>
-        }
-      />
+    <div className="flex flex-col gap-4 pb-4 lg:h-full lg:gap-3 lg:pb-0">
 
-      {/* Filtros */}
-      <div className="flex gap-2 flex-wrap">
-        {(['todas', 'ativa', 'pausada', 'concluida'] as const).map((s) => {
-          const count = s === 'todas' ? obras.length : obras.filter((o) => o.status === s).length;
-          return (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                filter === s
-                  ? 'bg-navy text-white border-navy shadow-sm'
-                  : 'bg-white text-gray-text border-gray-border hover:border-navy/40 hover:text-navy'
-              }`}
-            >
-              {s === 'todas' ? 'Todas' : STATUS_LABELS[s]}
-              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${filter === s ? 'bg-white/20' : 'bg-gray-100'}`}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
+      {/* ── Cabeçalho ── */}
+      <div className="lg:shrink-0 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-muted">Gestão de Projectos</p>
+          <h1 className="text-2xl font-black text-navy tracking-tight mt-0.5">Obras</h1>
+        </div>
+        <button
+          onClick={openCreate}
+          className="flex items-center gap-2 h-10 px-4 bg-navy text-white rounded-xl text-sm font-semibold hover:bg-navy-light transition-colors shadow-sm shadow-navy/20 shrink-0"
+        >
+          <Plus size={15} />
+          <span className="hidden sm:inline">Nova Obra</span>
+          <span className="sm:hidden">Nova</span>
+        </button>
       </div>
 
-      {/* Lista */}
-      {isLoading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-4 border-navy border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-          <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-200">
-            <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
-            <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
-            <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
-          </svg>
-          <div>
-            <p className="text-gray-muted text-sm font-medium">Nenhuma obra encontrada</p>
-            {filter !== 'todas' && (
-              <button className="text-xs text-accent-blue hover:underline mt-1" onClick={() => setFilter('todas')}>
-                Ver todas as obras
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map((obra) => (
-            <ObraCard
-              key={obra.id}
-              obra={obra}
-              onEdit={() => openEdit(obra)}
-              onFinalize={() => handleFinalize(obra)}
-              onReactivate={() => handleReactivate(obra)}
-              onDelete={() => setDeleteTarget(obra)}
-              isUpdating={updateObra.isPending && (updateObra.variables as any)?.id === obra.id}
-            />
+      {/* ── Stats ── */}
+      <div className="lg:shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="animate-pulse rounded-xl bg-gray-border/60 h-[78px]" />
+          ))
+        ) : (
+          <>
+            <div className="bg-white rounded-xl border border-gray-border shadow-sm p-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Total</p>
+                <div className="w-6 h-6 rounded-lg bg-navy/10 flex items-center justify-center">
+                  <Building2 size={12} className="text-navy" />
+                </div>
+              </div>
+              <p className="text-[20px] font-black text-navy leading-none">{obras.length}</p>
+              <p className="text-[10px] text-gray-muted mt-1">obra{obras.length !== 1 ? 's' : ''}</p>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-border shadow-sm p-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Ativas</p>
+                <div className="w-6 h-6 rounded-lg bg-success/10 flex items-center justify-center">
+                  <CheckCircle2 size={12} className="text-success" />
+                </div>
+              </div>
+              <p className="text-[20px] font-black text-navy leading-none">{obraAtivas}</p>
+              <p className="text-[10px] text-gray-muted mt-1">em progresso</p>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-border shadow-sm p-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Pausadas</p>
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${obraPausadas > 0 ? 'bg-warning/10' : 'bg-gray-bg'}`}>
+                  <Clock size={12} className={obraPausadas > 0 ? 'text-warning' : 'text-gray-muted'} />
+                </div>
+              </div>
+              <p className={`text-[20px] font-black leading-none ${obraPausadas > 0 ? 'text-warning' : 'text-navy'}`}>{obraPausadas}</p>
+              <p className="text-[10px] text-gray-muted mt-1">aguardam retoma</p>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-border shadow-sm p-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Concluídas</p>
+                <div className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center">
+                  <Archive size={12} className="text-gray-muted" />
+                </div>
+              </div>
+              <p className="text-[20px] font-black text-navy leading-none">{obraConcluidas}</p>
+              <p className="text-[10px] text-gray-muted mt-1">finalizadas</p>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Filtro segmented ── */}
+      <div className="lg:shrink-0">
+        <div className="inline-flex items-center bg-gray-100 rounded-xl p-[3px] gap-[2px]">
+          {([
+            { v: 'todas',    l: 'Todas'     },
+            { v: 'ativa',    l: 'Ativas'    },
+            { v: 'pausada',  l: 'Pausadas'  },
+            { v: 'concluida',l: 'Concluídas'},
+          ] as { v: ObraStatus | 'todas'; l: string }[]).map(({ v, l }) => (
+            <button
+              key={v}
+              onClick={() => setFilter(v)}
+              className={`h-[30px] px-3 rounded-[9px] text-[11px] font-semibold transition-all whitespace-nowrap ${
+                filter === v
+                  ? 'bg-white shadow-sm text-navy'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              {l}
+            </button>
           ))}
         </div>
-      )}
+      </div>
+
+      {/* ── Lista ── */}
+      <div className="lg:flex-1 lg:overflow-y-auto lg:min-h-0">
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+              <div key={i} className="animate-pulse rounded-xl bg-gray-border/60 h-[180px]" />
+            ))}
+          </div>
+        ) : filteredObras.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-center h-full">
+            <div className="w-14 h-14 rounded-2xl border border-gray-border bg-gray-bg flex items-center justify-center">
+              <Building2 size={22} className="text-gray-muted" strokeWidth={1.4} />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-navy">Nenhuma obra encontrada</p>
+              {filter !== 'todas' && (
+                <button className="text-xs text-accent-blue hover:underline font-medium" onClick={() => setFilter('todas')}>
+                  Ver todas as obras
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {paginated.map((obra) => (
+              <ObraCard
+                key={obra.id}
+                obra={obra}
+                onEdit={() => openEdit(obra)}
+                onFinalize={() => handleFinalize(obra)}
+                onReactivate={() => handleReactivate(obra)}
+                onDelete={() => setDeleteTarget(obra)}
+                isUpdating={updateObra.isPending && (updateObra.variables as any)?.id === obra.id}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Paginação ── */}
+      <div className={`lg:shrink-0 flex items-center justify-between pt-3 border-t border-gray-border ${isLoading || filteredObras.length === 0 || totalPages <= 1 ? 'invisible' : ''}`}>
+        <button
+          onClick={() => setPage(p => Math.max(0, p - 1))}
+          disabled={page === 0}
+          className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-border bg-white text-xs font-semibold text-gray-muted hover:text-navy hover:border-navy/30 disabled:opacity-30 disabled:pointer-events-none transition-all"
+        >
+          <ChevronLeft size={13} /> Anterior
+        </button>
+        <p className="text-[11px] text-gray-muted">
+          <span className="font-black text-navy">{rangeStart}</span>{' '}–{' '}<span className="font-black text-navy">{rangeEnd}</span>{' '}de{' '}<span className="font-black text-navy">{filteredObras.length}</span>{' '}obra{filteredObras.length !== 1 ? 's' : ''}
+        </p>
+        <button
+          onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+          disabled={page >= totalPages - 1}
+          className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-border bg-white text-xs font-semibold text-gray-muted hover:text-navy hover:border-navy/30 disabled:opacity-30 disabled:pointer-events-none transition-all"
+        >
+          Seguinte <ChevronRight size={13} />
+        </button>
+      </div>
 
       {/* ── Modal Criar / Editar ── */}
       <Dialog open={modalOpen} onOpenChange={(o) => !o && setModalOpen(false)}>

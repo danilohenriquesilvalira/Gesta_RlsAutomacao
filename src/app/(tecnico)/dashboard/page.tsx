@@ -4,13 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   BedDouble, Utensils, Bus, Fuel, Package, Tag,
-  ArrowDownToLine, ArrowUpFromLine, Clock, CreditCard, Ticket,
-  ClipboardList, Building2, CheckCircle2, AlertCircle, Timer,
+  ArrowDownToLine, CreditCard, Ticket,
+  CheckCircle2, Building2,
   ReceiptText, ChevronUp, ChevronLeft, ChevronRight, TrendingUp,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, BarChart, Bar, Cell, Label
+  PieChart, Pie, Cell, Label,
 } from 'recharts';
 import { useAuth } from '@/hooks/useAuth';
 import { useDepositos, useSaldoTecnico, useDespesas } from '@/lib/queries/despesas';
@@ -30,6 +30,17 @@ function fmtH(h: number) {
 }
 function fmtDate(d: string) {
   return new Date(d + 'T00:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' });
+}
+function shortServ(s: string): string {
+  const m: Record<string, string> = {
+    'Instalação Elétrica': 'Inst. Elétrica',
+    'Prog. CLP': 'Prog. CLP',
+    'Instrumentação': 'Instrumentação',
+    'Comissionamento': 'Comissionamento',
+    'Manutenção Corretiva': 'Mant. Corretiva',
+    'Manutenção Preventiva': 'Mant. Preventiva',
+  };
+  return m[s] ?? s;
 }
 
 const MES_KEY = new Date().toISOString().slice(0, 7);
@@ -120,6 +131,40 @@ export default function TecnicoDashboardPage() {
   const aptAprovados = useMemo(() => apontamentos.filter(a => a.status === 'aprovado').length, [apontamentos]);
   const aptRejeitados = useMemo(() => apontamentos.filter(a => a.status === 'rejeitado').length, [apontamentos]);
 
+  const tipoHoraStats = useMemo(() => {
+    const aprov = apontamentos.filter(a => a.status === 'aprovado');
+    return {
+      normal:   aprov.filter(a => a.tipo_hora === 'normal').reduce((s, a) => s + (a.total_horas ?? 0), 0),
+      extra50:  aprov.filter(a => a.tipo_hora === 'extra_50').reduce((s, a) => s + (a.total_horas ?? 0), 0),
+      extra100: aprov.filter(a => a.tipo_hora === 'extra_100').reduce((s, a) => s + (a.total_horas ?? 0), 0),
+    };
+  }, [apontamentos]);
+
+  const servicoStats = useMemo(() => {
+    const map: Record<string, number> = {};
+    apontamentos.filter(a => a.status === 'aprovado').forEach(a => {
+      const s = a.tipo_servico ?? 'Outro';
+      map[s] = (map[s] ?? 0) + (a.total_horas ?? 0);
+    });
+    const total = Object.values(map).reduce((acc, v) => acc + v, 0);
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([nome, horas]) => ({ nome, horas, pct: total > 0 ? Math.round((horas / total) * 100) : 0 }));
+  }, [apontamentos]);
+
+  const obraStats = useMemo(() => {
+    const map: Record<string, { nome: string; horas: number; progresso: number }> = {};
+    apontamentos.forEach(a => {
+      if (!a.obra_id || !a.obra) return;
+      if (!map[a.obra_id]) {
+        map[a.obra_id] = { nome: a.obra.nome, horas: 0, progresso: a.obra.progresso ?? 0 };
+      }
+      map[a.obra_id].horas += a.total_horas ?? 0;
+    });
+    return Object.values(map).sort((a, b) => b.horas - a.horas).slice(0, 4);
+  }, [apontamentos]);
+
   // ── Work Charts Data ───────────────────────────────────────────────────────
   const workPulseData = useMemo(() => [
     { name: 'Aprovados', value: aptAprovados, color: '#10b981' },
@@ -127,23 +172,6 @@ export default function TecnicoDashboardPage() {
     { name: 'Rejeitados', value: aptRejeitados, color: '#ef4444' },
   ].filter(d => d.value > 0), [aptAprovados, aptPendentes, aptRejeitados]);
 
-  const weeklyWorkData = useMemo(() => {
-    const days = 7;
-    const arr = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      const hours = apontamentos
-        .filter(a => a.data_apontamento === dateStr && a.status === 'aprovado')
-        .reduce((acc, a) => acc + (a.total_horas || 0), 0);
-      arr.push({
-        day: d.toLocaleDateString('pt-PT', { weekday: 'short' }).replace('.', '').toUpperCase(),
-        hours: Number(hours.toFixed(1))
-      });
-    }
-    return arr;
-  }, [apontamentos]);
 
   const isLoading = ldep || ldesp;
   const firstName = profile?.full_name?.split(' ')[0] ?? 'Técnico';
@@ -314,95 +342,95 @@ export default function TecnicoDashboardPage() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-4 pb-4 lg:h-full lg:flex lg:flex-col lg:space-y-0 lg:gap-3 lg:pb-0">
 
       {/* ── Saudação ── */}
-      <div>
+      <div className="lg:shrink-0">
         <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-muted">Bem-vindo</p>
         <h1 className="text-2xl font-black text-navy tracking-tight mt-0.5">{firstName}</h1>
       </div>
 
       {/* BLOCO 1 wrapper */}
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 lg:grid-cols-5 lg:grid-rows-[auto_auto] gap-4">
+      <div className="space-y-4 lg:flex-1 lg:min-h-[420px] lg:space-y-0">
+        <div className="grid grid-cols-1 lg:grid-cols-5 lg:grid-rows-[auto_1fr] gap-4 lg:h-full">
 
           {/* Cartão de Saldo — col 1-3 */}
           <div
-            className="lg:col-span-3 lg:row-start-1 relative rounded-2xl overflow-hidden select-none h-full"
+            className="lg:col-span-3 lg:row-start-1 relative rounded-2xl overflow-hidden select-none"
             style={{ background: '#0a1628' }}
           >
             <div className="absolute rounded-full pointer-events-none" style={{ width: 260, height: 260, right: -70, top: -70, background: 'radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%)' }} />
             <div className="absolute rounded-full pointer-events-none" style={{ width: 70, height: 70, left: '40%', top: -18, background: 'radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%)' }} />
 
-            <div className="relative z-10 p-5 sm:p-6 h-full flex flex-col">
-              <div className="flex items-start justify-between">
-                <div className="mt-4">
-                  <ChipIcon />
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="hidden lg:block text-right">
-                    <p className="text-[10px] font-black tracking-[0.25em] text-white/30 uppercase">Conta</p>
-                    <p className="text-xs font-bold text-white/50">Pessoal</p>
+            <div className="relative z-10 p-5 sm:p-6 flex flex-col gap-5 min-h-[220px]">
+
+              {/* ── TOPO: Chip + tipo de conta ── */}
+              <div className="flex items-center justify-between">
+                <ChipIcon />
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-[9px] font-black tracking-[0.25em] text-white/25 uppercase">Conta</p>
+                    <p className="text-[11px] font-bold text-white/45">Pessoal</p>
                   </div>
                   <button
                     onClick={() => setShowDespesasMobile(v => !v)}
-                    className="lg:hidden relative w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-200 active:scale-90 border border-white/10"
+                    className="lg:hidden relative w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90 border border-white/10"
                     style={{
-                      background: showDespesasMobile ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.10)',
+                      background: showDespesasMobile ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.08)',
                       backdropFilter: 'blur(8px)',
                     }}
                   >
-                    {showDespesasMobile ? <ChevronUp size={16} className="text-white" /> : <ReceiptText size={16} className="text-white/75" />}
+                    {showDespesasMobile ? <ChevronUp size={14} className="text-white" /> : <ReceiptText size={14} className="text-white/70" />}
                   </button>
                 </div>
               </div>
 
-              {/* Centro: Saldo */}
-              <div className="flex-1 flex flex-col justify-center">
-                <p className="text-[11px] font-black tracking-[0.2em] text-white/40 uppercase mb-1">Saldo Disponível</p>
-                {isLoading
-                  ? <div className="h-9 w-48 rounded-lg bg-white/10 animate-pulse mt-1" />
-                  : <p className="text-[38px] font-black text-white leading-none tracking-tight">{eur(Math.max(saldo, 0))}</p>
-                }
-              </div>
-
-              {/* Fundo: Consumido e Rodapé */}
-              <div className="mt-auto space-y-5">
+              {/* ── CENTRO: Saldo + barra de consumo ── */}
+              <div className="flex-1 flex flex-col justify-center gap-3">
+                <div>
+                  <p className="text-[10px] font-black tracking-[0.22em] text-white/35 uppercase mb-1.5">Saldo Disponível</p>
+                  {isLoading
+                    ? <div className="h-9 w-48 rounded-lg bg-white/10 animate-pulse" />
+                    : <p className="text-[36px] font-black text-white leading-none tracking-tight">{eur(Math.max(saldo, 0))}</p>
+                  }
+                </div>
                 {!isLoading && totalDepositado > 0 && (
                   <div>
-                    <div className="flex justify-between text-[10px] font-black uppercase text-white/40 mb-1.5">
+                    <div className="flex justify-between text-[9px] font-black uppercase text-white/30 mb-1.5">
                       <span className="tracking-widest">Consumido</span>
-                      <span className="text-white/60">{percentConsumido.toFixed(0)}%</span>
+                      <span className="text-white/50">{percentConsumido.toFixed(0)}%</span>
                     </div>
-                    <div className="h-1.5 w-full rounded-full bg-white/10">
+                    <div className="h-1 w-full rounded-full bg-white/10">
                       <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-300 transition-all duration-500" style={{ width: `${percentConsumido}%` }} />
                     </div>
                   </div>
                 )}
+              </div>
 
-                <div className="flex items-end justify-between border-t border-white/5 pt-4">
-                  <div>
-                    <p className="text-[10px] text-white/30 uppercase tracking-[0.2em] font-black mb-1">Titular</p>
-                    <p className="text-sm font-black text-white uppercase tracking-wider">{profile?.full_name ?? '—'}</p>
-                  </div>
-                  <div className="hidden lg:block text-right">
-                    <p className="text-[10px] text-white/30 uppercase tracking-[0.2em] font-black mb-1">Função</p>
-                    <p className="text-xs font-bold text-white/50">Técnico de Automação</p>
-                  </div>
+              {/* ── RODAPÉ: Titular ── */}
+              <div className="flex items-end justify-between mt-auto">
+                <div>
+                  <p className="text-[8px] text-white/25 uppercase tracking-[0.2em] font-black mb-0.5">Titular</p>
+                  <p className="text-[12px] font-black text-white uppercase tracking-wider leading-none">{profile?.full_name ?? '—'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[8px] text-white/25 uppercase tracking-[0.2em] font-black mb-0.5">Função</p>
+                  <p className="text-[10px] font-bold text-white/40 leading-none">Técnico</p>
                 </div>
               </div>
+
             </div>
           </div>
 
           {/* Gráfico de Despesas — col 1-3 row 2 */}
           <div
-            className="hidden lg:flex lg:col-span-3 lg:row-start-2 bg-white rounded-xl border overflow-hidden flex-col shadow-md"
+            className="hidden lg:flex lg:col-span-3 lg:row-start-2 lg:h-full bg-white rounded-xl border overflow-hidden flex-col shadow-md"
             style={{ borderColor: '#D1D5DB' }}
           >
-            <div className="px-5 py-4 border-b flex items-center justify-between shrink-0" style={{ borderColor: '#D1D5DB' }}>
+            <div className="px-4 py-2.5 border-b flex items-center justify-between shrink-0" style={{ borderColor: '#D1D5DB' }}>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-muted">Fundo de Maneio</p>
-                <h3 className="text-[15px] font-bold text-navy mt-0.5">Fluxo de Despesas</h3>
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Fundo de Maneio</p>
+                <h3 className="text-[13px] font-bold text-navy">Fluxo de Despesas</h3>
               </div>
               <div className="flex items-center gap-6">
                 <div className="text-right">
@@ -419,7 +447,7 @@ export default function TecnicoDashboardPage() {
                 </div>
               </div>
             </div>
-            <div className="flex-1 w-full p-4 min-h-[300px]">
+            <div className="w-full p-4 h-[260px] lg:flex-1 lg:min-h-0">
               {isLoading ? (
                 <div className="w-full h-full flex flex-col gap-2 p-3"><Sk className="flex-1 w-full" /><div className="flex gap-2 h-4"><Sk className="flex-1" /><Sk className="flex-1" /></div></div>
               ) : (
@@ -443,13 +471,13 @@ export default function TecnicoDashboardPage() {
 
           {/* Atividade — col 4-5 row 1 */}
           <div
-            className="hidden lg:block lg:col-span-2 lg:col-start-4 lg:row-start-1 bg-white rounded-xl border overflow-hidden shadow-md"
+            className="hidden lg:flex lg:flex-col lg:col-span-2 lg:col-start-4 lg:row-start-1 bg-white rounded-xl border overflow-hidden shadow-md"
             style={{ borderColor: '#D1D5DB' }}
           >
-            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: '#D1D5DB' }}>
+            <div className="px-4 py-2.5 border-b flex items-center justify-between" style={{ borderColor: '#D1D5DB' }}>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-muted">Atividade</p>
-                <h3 className="text-[15px] font-bold text-navy mt-0.5">Despesas Recentes</h3>
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Atividade</p>
+                <h3 className="text-[13px] font-bold text-navy">Despesas Recentes</h3>
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex items-center bg-gray-bg border border-gray-border rounded-lg p-0.5 mr-1">
@@ -460,18 +488,18 @@ export default function TecnicoDashboardPage() {
                 <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-error"><Ticket size={15} /></div>
               </div>
             </div>
-            <div>{despesasBodyContent}</div>
+            <div className="lg:flex-1 lg:overflow-hidden">{despesasBodyContent}</div>
           </div>
 
           {/* Histórico — col 4-5 row 2 */}
           <div
-            className="hidden lg:block lg:col-span-2 lg:col-start-4 lg:row-start-2 bg-white rounded-xl border overflow-hidden shadow-md"
+            className="hidden lg:flex lg:flex-col lg:h-full lg:col-span-2 lg:col-start-4 lg:row-start-2 bg-white rounded-xl border overflow-hidden shadow-md"
             style={{ borderColor: '#D1D5DB' }}
           >
-            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: '#D1D5DB' }}>
+            <div className="px-4 py-2.5 border-b flex items-center justify-between" style={{ borderColor: '#D1D5DB' }}>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-muted">Histórico</p>
-                <h3 className="text-[15px] font-bold text-navy mt-0.5">Depósitos Recebidos</h3>
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Histórico</p>
+                <h3 className="text-[13px] font-bold text-navy">Depósitos Recebidos</h3>
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex items-center bg-gray-bg border border-gray-border rounded-lg p-0.5 mr-1">
@@ -482,7 +510,7 @@ export default function TecnicoDashboardPage() {
                 <div className="w-8 h-8 rounded-lg bg-accent-blue/10 flex items-center justify-center text-accent-blue"><CreditCard size={15} /></div>
               </div>
             </div>
-            <div>{depositosBodyContent}</div>
+            <div className="lg:flex-1 lg:overflow-hidden">{depositosBodyContent}</div>
           </div>
         </div>
 
@@ -490,16 +518,16 @@ export default function TecnicoDashboardPage() {
         <div className="lg:hidden space-y-4">
           <div className="overflow-hidden transition-all duration-300 ease-in-out" style={{ maxHeight: showDespesasMobile ? '500px' : '0px', opacity: showDespesasMobile ? 1 : 0 }}>
             <div className="bg-white rounded-xl border border-gray-border overflow-hidden shadow-sm">
-              <div className="px-5 py-4 border-b border-gray-border flex items-center justify-between">
-                <div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-muted">Atividade</p><h3 className="text-[15px] font-bold text-navy mt-0.5">Despesas Recentes</h3></div>
+              <div className="px-4 py-2.5 border-b border-gray-border flex items-center justify-between">
+                <div><p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Atividade</p><h3 className="text-[13px] font-bold text-navy">Despesas Recentes</h3></div>
                 <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-error"><Ticket size={15} /></div><button onClick={() => setShowDespesasMobile(false)} className="w-8 h-8 rounded-lg bg-gray-border/30 flex items-center justify-center text-gray-muted"><ChevronUp size={14} /></button></div>
               </div>
               <div className="overflow-y-auto" style={{ maxHeight: '360px' }}>{despesasBodyContent}</div>
             </div>
           </div>
           <div className="bg-white rounded-xl border border-gray-border overflow-hidden shadow-sm">
-            <div className="px-5 py-4 border-b border-gray-border flex items-center justify-between">
-              <div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-muted">Histórico</p><h3 className="text-[15px] font-bold text-navy mt-0.5">Depósitos Recebidos</h3></div>
+            <div className="px-4 py-2.5 border-b border-gray-border flex items-center justify-between">
+              <div><p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Histórico</p><h3 className="text-[13px] font-bold text-navy">Depósitos Recebidos</h3></div>
               <div className="w-8 h-8 rounded-lg bg-accent-blue/10 flex items-center justify-center text-accent-blue"><CreditCard size={15} /></div>
             </div>
             <div className="overflow-y-auto" style={{ maxHeight: '360px' }}>{depositosBodyContent}</div>
@@ -507,157 +535,199 @@ export default function TecnicoDashboardPage() {
         </div>
       </div>
 
-      {/* BLOCO 2 — Performance & Projetos (Alinhado com a grelha acima) */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mt-6">
+      {/* BLOCO 2 — Performance compacta (shrink-0: ocupa só o necessário) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 lg:shrink-0">
 
-        {/* Card 1: Pulso de Trabalho (Alinhado com Fluxo de Despesas — 3 colunas) */}
+        {/* Pulso de Trabalho — 3 secções horizontais */}
         <div
-          className="lg:col-span-3 bg-white rounded-xl border overflow-hidden shadow-md flex flex-col md:flex-row lg:h-[300px]"
+          className="lg:col-span-3 bg-white rounded-xl border overflow-hidden shadow-md"
           style={{ borderColor: '#D1D5DB' }}
         >
-          <div className="flex-1 p-5 border-r border-gray-100 flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted mb-1">Status Mensal</p>
-                <h3 className="text-base font-bold text-navy">Pulso de Trabalho</h3>
-              </div>
-              <div className="w-9 h-9 rounded-xl bg-navy/8 flex items-center justify-center text-navy shadow-sm">
-                <CheckCircle2 size={16} />
-              </div>
-            </div>
+          <div className="flex flex-col sm:flex-row h-full">
 
-            <div className="flex-1 min-h-[160px] relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={workPulseData.length ? workPulseData : [{ name: 'Nenhum', value: 1, color: '#f1f5f9' }]}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {(workPulseData.length ? workPulseData : [{ color: '#f1f5f9' }]).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                    <Label
-                      value={apontamentos.length}
-                      position="center"
-                      className="text-[20px] font-black fill-navy"
-                    />
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-4 text-center pointer-events-none">
-                <p className="text-[9px] font-bold text-gray-muted uppercase tracking-tighter">Registos</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-center gap-4 mt-2">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-[10px] font-bold text-gray-muted uppercase">Apr. ({aptAprovados})</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-amber-500" />
-                <span className="text-[10px] font-bold text-gray-muted uppercase">Pend. ({aptPendentes})</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="md:w-56 bg-gray-bg/40 p-5 flex flex-col justify-center border-t md:border-t-0 md:border-l border-gray-100">
-            <div className="space-y-6">
-              <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Produtividade</p>
-                <div className="flex items-baseline gap-1">
-                  <p className="text-2xl font-black text-navy">{fmtH(horasMes)}</p>
-                  <p className="text-[10px] font-black text-gray-muted uppercase">Este Mês</p>
+            {/* Secção 1: Donut de estado */}
+            <div className="flex-1 p-4 border-b sm:border-b-0 sm:border-r border-gray-100 flex flex-col min-w-0">
+              <div className="flex items-center justify-between mb-2 shrink-0">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Estado</p>
+                  <h3 className="text-[13px] font-bold text-navy leading-tight">Apontamentos</h3>
+                </div>
+                <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500">
+                  <CheckCircle2 size={13} />
                 </div>
               </div>
-              <div className="pt-4 border-t border-gray-100">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Em Frequência</p>
-                <div className="flex items-baseline gap-1">
-                  <p className="text-2xl font-black text-navy">{obras.length}</p>
-                  <p className="text-[10px] font-black text-gray-muted uppercase">Obras Ativas</p>
+              <div className="relative flex-1 min-h-[110px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={workPulseData.length ? workPulseData : [{ name: 'Nenhum', value: 1, color: '#f1f5f9' }]}
+                      cx="50%" cy="50%"
+                      innerRadius={36} outerRadius={50}
+                      paddingAngle={workPulseData.length > 1 ? 4 : 0}
+                      dataKey="value"
+                    >
+                      {(workPulseData.length ? workPulseData : [{ color: '#f1f5f9' }]).map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                      <Label value={apontamentos.length} position="center" style={{ fontSize: 15, fontWeight: 900, fill: '#0f2147' }} />
+                    </Pie>
+                    <Tooltip contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-4 text-center pointer-events-none">
+                  <p className="text-[7px] font-bold text-gray-muted uppercase">Registos</p>
                 </div>
               </div>
+              <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 mt-1 shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span className="text-[9px] font-bold text-gray-muted">Apr. ({aptAprovados})</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <span className="text-[9px] font-bold text-gray-muted">Pend. ({aptPendentes})</span>
+                </div>
+                {aptRejeitados > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                    <span className="text-[9px] font-bold text-gray-muted">Rej. ({aptRejeitados})</span>
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Secção 2: Por tipo de serviço */}
+            <div className="flex-[1.3] p-4 border-b sm:border-b-0 sm:border-r border-gray-100 flex flex-col min-w-0">
+              <div className="mb-3 shrink-0">
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Distribuição</p>
+                <h3 className="text-[13px] font-bold text-navy leading-tight">Por Tipo de Serviço</h3>
+              </div>
+              {servicoStats.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="text-[10px] text-gray-muted text-center">Sem dados aprovados</p>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col justify-center space-y-2.5">
+                  {servicoStats.map((s, i) => {
+                    const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6'];
+                    return (
+                      <div key={i}>
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[10px] font-semibold text-navy truncate max-w-[65%]">{shortServ(s.nome)}</p>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[9px] font-bold text-gray-muted">{fmtH(s.horas)}</span>
+                            <span className="text-[9px] font-black" style={{ color: COLORS[i] }}>{s.pct}%</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{ width: `${s.pct}%`, backgroundColor: COLORS[i] }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Secção 3: Horas e tipo */}
+            <div className="sm:w-44 bg-gray-bg/40 p-4 flex flex-col justify-center gap-3">
+              <div>
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Este Mês</p>
+                <p className="text-lg font-black text-navy leading-none">{fmtH(horasMes)}</p>
+                <p className="text-[9px] font-bold text-gray-muted uppercase mt-0.5">trabalhadas</p>
+              </div>
+              <div className="pt-3 border-t border-gray-100 space-y-1.5">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Tipo de Hora</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-semibold text-gray-500">Normal</span>
+                  <span className="text-[10px] font-black text-navy">{fmtH(tipoHoraStats.normal)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-semibold text-amber-500">Extra 50%</span>
+                  <span className="text-[10px] font-black text-navy">{fmtH(tipoHoraStats.extra50)}</span>
+                </div>
+                {tipoHoraStats.extra100 > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-semibold text-red-400">Extra 100%</span>
+                    <span className="text-[10px] font-black text-navy">{fmtH(tipoHoraStats.extra100)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
         </div>
 
-        {/* Card 2: Carga de Trabalho (Alinhado com Histórico — 2 colunas) */}
+        {/* Obras em Curso — progress bars por obra */}
         <div
-          className="lg:col-span-2 bg-white rounded-xl border overflow-hidden shadow-md flex flex-col lg:h-[300px]"
+          className="lg:col-span-2 bg-white rounded-xl border overflow-hidden shadow-md"
           style={{ borderColor: '#D1D5DB' }}
         >
-          <div className="p-5 flex-1 flex flex-col">
-            <div className="flex items-center justify-between mb-6">
+          <div className="p-4">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted mb-1">Últimos 7 dias</p>
-                <h3 className="text-base font-bold text-navy">Carga de Trabalho</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Progresso</p>
+                <h3 className="text-sm font-bold text-navy leading-tight">Obras em Curso</h3>
               </div>
-              <div className="w-9 h-9 rounded-xl bg-accent-blue/10 flex items-center justify-center text-accent-blue shadow-sm">
-                <Timer size={16} />
+              <div className="flex items-center gap-1.5 bg-navy/5 rounded-lg px-2.5 py-1.5">
+                <Building2 size={10} className="text-navy" />
+                <span className="text-[10px] font-black text-navy">{obraStats.length || obras.length} obras</span>
               </div>
             </div>
 
-            <div className="flex-1 min-h-[160px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyWorkData}>
-                  <defs>
-                    <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2563eb" stopOpacity={0.8} />
-                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.4} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis
-                    dataKey="day"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 800 }}
-                    dy={10}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 800 }}
-                    width={20}
-                  />
-                  <Tooltip
-                    cursor={{ fill: '#f8fafc' }}
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="bg-navy p-2 rounded-lg shadow-xl border border-navy/10 animate-in fade-in zoom-in duration-200">
-                            <p className="text-[10px] font-black text-white/60 uppercase mb-0.5">{payload[0].payload.day}</p>
-                            <p className="text-sm font-black text-white">{payload[0].value} horas</p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Bar
-                    dataKey="hours"
-                    fill="url(#barGrad)"
-                    radius={[6, 6, 0, 0]}
-                    barSize={32}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-4 flex items-center justify-between pt-4 border-t border-gray-50">
-              <div className="flex items-center gap-2">
-                <TrendingUp size={14} className="text-emerald-500" />
-                <span className="text-[11px] font-bold text-navy">Rendimento Estável</span>
+            {/* Lista de obras com progress bars */}
+            {obraStats.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-16 text-center">
+                <p className="text-xs font-semibold text-navy">Sem apontamentos em obras</p>
+                <p className="text-[10px] text-gray-muted mt-0.5">Registe horas para ver o progresso</p>
               </div>
-              <span className="text-[10px] font-black text-gray-muted uppercase">Média: {(weeklyWorkData.reduce((acc, d) => acc + d.hours, 0) / 7).toFixed(1)}h / dia</span>
+            ) : (
+              <div className="space-y-2.5">
+                {obraStats.map((obra, i) => (
+                  <div key={i}>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-[11px] font-semibold text-navy truncate max-w-[55%] leading-tight">{obra.nome}</p>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[9px] font-bold text-gray-400">{fmtH(obra.horas)}</span>
+                        <span
+                          className="text-[9px] font-black tabular-nums"
+                          style={{ color: obra.progresso >= 80 ? '#10b981' : obra.progresso >= 50 ? '#2563eb' : '#f59e0b' }}
+                        >
+                          {obra.progresso}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${obra.progresso}%`,
+                          background: obra.progresso >= 80
+                            ? 'linear-gradient(to right, #059669, #10b981)'
+                            : obra.progresso >= 50
+                            ? 'linear-gradient(to right, #1d4ed8, #3b82f6)'
+                            : 'linear-gradient(to right, #d97706, #f59e0b)',
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Rodapé */}
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-1.5">
+                <TrendingUp size={11} className="text-emerald-500" />
+                <span className="text-[10px] font-bold text-navy">{obras.length} ativas na empresa</span>
+              </div>
+              <span className="text-[10px] font-black text-gray-muted">
+                {apontamentos.length} registos
+              </span>
             </div>
           </div>
         </div>
