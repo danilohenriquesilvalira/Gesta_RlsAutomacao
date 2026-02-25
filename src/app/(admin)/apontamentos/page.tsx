@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ApontamentosTable } from '@/components/admin/ApontamentosTable';
+import { PageHeader } from '@/components/shared/PageHeader';
 import {
   useApontamentos,
   useUpdateApontamentoStatus,
@@ -47,12 +48,10 @@ export default function ApontamentosPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-navy">Apontamentos</h1>
-        <p className="text-gray-muted text-xs sm:text-sm">
-          Gerencie todos os apontamentos dos técnicos
-        </p>
-      </div>
+      <PageHeader
+        title="Apontamentos"
+        subtitle="Gerencie todos os apontamentos dos técnicos"
+      />
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-border p-4">

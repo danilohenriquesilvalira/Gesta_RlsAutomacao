@@ -6,6 +6,7 @@ import type { TecnicoRow } from '@/components/admin/TecnicosTable';
 import { ApontamentosTable } from '@/components/admin/ApontamentosTable';
 import { CreateUserModal } from '@/components/admin/CreateUserModal';
 import { EditTecnicoModal } from '@/components/admin/EditTecnicoModal';
+import { PageHeader } from '@/components/shared/PageHeader';
 import { useTecnicosComHoras } from '@/lib/queries/tecnicos';
 import { useApontamentos, useUpdateApontamentoStatus } from '@/lib/queries/apontamentos';
 import { Button } from '@/components/ui/button';
@@ -30,20 +31,15 @@ export default function TecnicosPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-navy">Técnicos</h1>
-          <p className="text-gray-muted text-xs sm:text-sm">
-            Acompanhe as horas dos técnicos de campo
-          </p>
-        </div>
-        <Button
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-navy hover:bg-navy-light text-white shrink-0 text-sm"
-        >
-          + Novo Técnico
-        </Button>
-      </div>
+      <PageHeader
+        title="Técnicos"
+        subtitle="Acompanhe as horas dos técnicos de campo"
+        actions={
+          <Button onClick={() => setIsAddModalOpen(true)} className="bg-navy hover:bg-navy-light text-white shrink-0 text-sm">
+            + Novo Técnico
+          </Button>
+        }
+      />
 
       <CreateUserModal
         open={isAddModalOpen}

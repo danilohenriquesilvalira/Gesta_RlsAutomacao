@@ -6,6 +6,7 @@ import { ApontamentosTable } from '@/components/admin/ApontamentosTable';
 import { TecnicosTable } from '@/components/admin/TecnicosTable';
 import { ActivityFeed } from '@/components/admin/ActivityFeed';
 import { useApontamentos, useUpdateApontamentoStatus } from '@/lib/queries/apontamentos';
+import { PageHeader } from '@/components/shared/PageHeader';
 import { useTecnicosComHoras } from '@/lib/queries/tecnicos';
 import { useObras } from '@/lib/queries/obras';
 import { createClient } from '@/lib/supabase/client';
@@ -99,17 +100,10 @@ export default function DashboardPage() {
 
   return (
     <div className="h-full flex flex-col space-y-3 lg:space-y-4 animate-in fade-in duration-500">
-      <div className="shrink-0 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-navy rounded-lg lg:hidden">
-            <Activity className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-navy tracking-tight">Painel Administrativo</h1>
-            <p className="text-gray-muted text-[11px] sm:text-xs">Operação em tempo real</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Painel Administrativo"
+        subtitle="Operação em tempo real"
+      />
 
       {/* KPIs with Lucide Icons */}
       <div className="shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-3">

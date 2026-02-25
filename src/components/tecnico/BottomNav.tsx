@@ -2,7 +2,7 @@
 
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
-import { Home, ListChecks, Building2, Wallet, User } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Building2, Wallet, User } from 'lucide-react'
 
 interface BottomNavProps {
   currentPath: string
@@ -10,14 +10,14 @@ interface BottomNavProps {
 
 const tabs = [
   {
-    label: 'Início',
-    href: '/inicio',
-    icon: (active: boolean) => <Home className={cn('w-5 h-5', active ? 'text-accent-blue' : 'text-gray-muted')} />,
+    label: 'Dashboard',
+    href: '/meu-dashboard',
+    icon: (active: boolean) => <LayoutDashboard className={cn('w-5 h-5', active ? 'text-accent-blue' : 'text-gray-muted')} />,
   },
   {
-    label: 'Apontar',
+    label: 'Apontamentos',
     href: '/meus-apontamentos',
-    icon: (active: boolean) => <ListChecks className={cn('w-5 h-5', active ? 'text-accent-blue' : 'text-gray-muted')} />,
+    icon: (active: boolean) => <ClipboardList className={cn('w-5 h-5', active ? 'text-accent-blue' : 'text-gray-muted')} />,
   },
   {
     label: 'Obras',
@@ -43,7 +43,7 @@ export function BottomNav({ currentPath }: BottomNavProps) {
         {tabs.map((tab) => {
           const isActive =
             currentPath === tab.href ||
-            (tab.href !== '/inicio' && currentPath.startsWith(tab.href))
+            (tab.href !== '/meu-dashboard' && currentPath.startsWith(tab.href))
 
           return (
             <Link

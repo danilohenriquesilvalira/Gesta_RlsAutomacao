@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { PageHeader } from '@/components/shared/PageHeader';
 import { useApontamentos } from '@/lib/queries/apontamentos';
 import {
   Dialog,
@@ -29,12 +30,10 @@ export default function FotosPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-navy">Minhas Fotos</h1>
-        <p className="text-sm text-gray-muted">
-          {allFotos.length} foto{allFotos.length !== 1 ? 's' : ''} registrada{allFotos.length !== 1 ? 's' : ''}
-        </p>
-      </div>
+      <PageHeader
+        title="Minhas Fotos"
+        subtitle={`${allFotos.length} foto${allFotos.length !== 1 ? 's' : ''} registrada${allFotos.length !== 1 ? 's' : ''}`}
+      />
 
       {allFotos.length === 0 ? (
         <div className="text-center py-12">

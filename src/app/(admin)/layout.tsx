@@ -31,7 +31,7 @@ export default function AdminLayout() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen flex bg-gray-bg">
+    <div className="h-screen flex overflow-hidden bg-gray-bg">
       {/* Desktop sidebar */}
       <AdminSidebar
         currentPath={pathname}
@@ -42,9 +42,9 @@ export default function AdminLayout() {
       />
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col min-h-screen min-w-0">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Mobile top bar */}
-        <header className="sticky top-0 z-30 flex items-center gap-2 bg-white border-b border-gray-border px-4 h-14 lg:hidden">
+        <header className="shrink-0 z-30 flex items-center gap-2 bg-white border-b border-gray-border px-4 h-14 lg:hidden">
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-navy">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
@@ -54,8 +54,8 @@ export default function AdminLayout() {
           <span className="text-base font-bold text-navy">FieldSync</span>
         </header>
 
-        {/* Page content - renders the current route */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">
           <Outlet />
         </main>
       </div>

@@ -3,10 +3,10 @@
 import { cn } from '@/lib/utils';
 import type { TipoHora } from '@/types';
 
-const options: { value: TipoHora; label: string; color: string }[] = [
-  { value: 'normal', label: 'Normal', color: 'bg-accent-blue text-white' },
-  { value: 'extra_50', label: 'Extra 50%', color: 'bg-warning text-white' },
-  { value: 'extra_100', label: 'Extra 100%', color: 'bg-error text-white' },
+const options: { value: TipoHora; label: string; activeClass: string }[] = [
+  { value: 'normal',    label: 'Normal',    activeClass: 'bg-accent-blue text-white border-accent-blue' },
+  { value: 'extra_50',  label: 'Extra 50%', activeClass: 'bg-warning text-white border-warning' },
+  { value: 'extra_100', label: 'Extra 100%',activeClass: 'bg-error text-white border-error' },
 ];
 
 interface HoraTypeSelectorProps {
@@ -23,10 +23,10 @@ export function HoraTypeSelector({ value, onChange }: HoraTypeSelectorProps) {
           type="button"
           onClick={() => onChange(opt.value)}
           className={cn(
-            'flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all border-2',
+            'flex-1 h-10 rounded-xl text-xs font-bold tracking-wide transition-all border',
             value === opt.value
-              ? `${opt.color} border-transparent shadow-md`
-              : 'bg-white text-gray-text border-gray-border hover:border-gray-muted'
+              ? opt.activeClass
+              : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700'
           )}
         >
           {opt.label}

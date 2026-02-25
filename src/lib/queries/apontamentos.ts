@@ -45,7 +45,7 @@ export function useCreateApontamento() {
   return useMutation({
     mutationFn: async (data: {
       tecnico_id: string;
-      obra_id: string;
+      obra_id: string | null;
       tipo_servico: string;
       tipo_hora: TipoHora;
       hora_entrada: string;
@@ -115,6 +115,53 @@ export function useUpdateApontamentoStatus() {
         .from('apontamentos')
         .update({ status })
         .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['apontamentos'] });
+    },
+  });
+}
+
+export function useUpdateApontamento() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      id: string;
+      obra_id: string | null;
+      tipo_servico: string;
+      tipo_hora: TipoHora;
+      hora_entrada: string;
+      hora_saida: string;
+      total_horas: number;
+      descricao?: string;
+    }) => {
+      const supabase = createClient();
+      const { id, ...updateData } = data;
+      const { error } = await supabase
+        .from('apontamentos')
+        .update({ ...updateData, synced_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['apontamentos'] });
+    },
+  });
+}
+
+export function useDeleteApontamento() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const supabase = createClient();
+      // Apagar fotos primeiro (FK constraint sem CASCADE)
+      const { error: fotosError } = await supabase.from('fotos').delete().eq('apontamento_id', id);
+      if (fotosError) throw fotosError;
+      // Apagar o apontamento
+      const { error } = await supabase.from('apontamentos').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {

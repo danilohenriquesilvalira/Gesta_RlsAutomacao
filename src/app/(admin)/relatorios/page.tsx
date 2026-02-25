@@ -6,6 +6,7 @@ import { useObras } from '@/lib/queries/obras';
 import { useTecnicos } from '@/lib/queries/tecnicos';
 import { ApontamentosTable } from '@/components/admin/ApontamentosTable';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/shared/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -61,21 +62,19 @@ export default function RelatoriosPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-navy">Relatórios</h1>
-          <p className="text-gray-muted text-xs sm:text-sm">
-            Filtre e exporte apontamentos
-          </p>
-        </div>
-        <Button
-          onClick={handleExport}
-          className="bg-success hover:bg-success/90 text-white shrink-0 text-sm"
-          disabled={exporting || apontamentos.length === 0}
-        >
-          {exporting ? 'Exportando...' : 'Exportar Excel'}
-        </Button>
-      </div>
+      <PageHeader
+        title="Relatórios"
+        subtitle="Filtre e exporte apontamentos"
+        actions={
+          <Button
+            onClick={handleExport}
+            className="bg-success hover:bg-success/90 text-white shrink-0 text-sm"
+            disabled={exporting || apontamentos.length === 0}
+          >
+            {exporting ? 'Exportando...' : 'Exportar Excel'}
+          </Button>
+        }
+      />
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-border p-4">

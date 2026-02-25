@@ -41,7 +41,7 @@ function parseDate(d: string) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function InicioPage() {
+export default function ApontamentosPage() {
   const { profile }  = useAuth();
   const { isOnline, refreshCount } = useOfflineSync();
 
@@ -122,7 +122,8 @@ export default function InicioPage() {
 
       {/* ── Header ── */}
       <PageHeader
-        title={`Olá, ${profile?.full_name?.split(' ')[0] ?? ''}`}
+        title="Apontamentos"
+        subtitle="O meu registo de horas"
         actions={
           <Button className="bg-navy hover:bg-navy-light text-white gap-1.5 text-sm" onClick={() => setModalOpen(true)}>
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

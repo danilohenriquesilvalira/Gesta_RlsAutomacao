@@ -6,8 +6,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDespesas, useCreateDespesa, useUpdateDespesa, useDeleteDespesa } from '@/lib/queries/despesas';
 import { useObras } from '@/lib/queries/obras';
 import { DespesaModal } from '@/components/tecnico/DespesaModal';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/shared/PageHeader';
 import {
   Dialog,
   DialogContent,
@@ -129,16 +131,15 @@ export default function MinhasDespesasPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-navy">As Minhas Despesas</h1>
-          <p className="text-sm text-gray-muted">Registo de despesas de campo</p>
-        </div>
-        <Button className="bg-navy hover:bg-navy-light text-white" onClick={() => setModalOpen(true)}>
-          + Nova Despesa
-        </Button>
-      </div>
+      <PageHeader
+        title="As Minhas Despesas"
+        subtitle="Registo de despesas de campo"
+        actions={
+          <Button className="bg-navy hover:bg-navy-light text-white" onClick={() => setModalOpen(true)}>
+            + Nova Despesa
+          </Button>
+        }
+      />
 
       {/* Lista */}
       {isLoading ? (
@@ -154,78 +155,93 @@ export default function MinhasDespesasPage() {
               {formatMonth(month + '-01')}
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {items.map((despesa) => (
-                <div
-                  key={despesa.id}
-                  className="rounded-xl border border-gray-border bg-white p-4 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-medium text-gray-muted capitalize">
-                          {despesa.tipo_despesa}
-                        </span>
-                        {getStatusBadge(despesa.status)}
-                      </div>
-                      <p className="text-sm font-bold text-navy truncate">
-                        {despesa.obra?.nome || 'Oficina'}
-                      </p>
-                      {despesa.descricao && (
-                        <p className="text-xs text-gray-muted mt-0.5 truncate">{despesa.descricao}</p>
-                      )}
-                    </div>
+              {items.map((despesa) => {
+                const barColor =
+                  despesa.status === 'pendente'
+                    ? 'bg-warning'
+                    : despesa.status === 'aprovada'
+                    ? 'bg-success'
+                    : 'bg-error';
 
-                    <div className="text-right shrink-0">
-                      <p className="text-base font-bold text-navy">
-                        {Number(despesa.valor).toFixed(2)} €
-                      </p>
-                      <p className="text-[11px] text-gray-muted mt-0.5">
+                return (
+                  <div
+                    key={despesa.id}
+                    className="relative bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+                  >
+                    {/* Barra de accent à esquerda */}
+                    <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${barColor}`} />
+
+                    <div className="pl-5 pr-4 pt-4 pb-3">
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[10px] font-black text-accent-blue tracking-widest uppercase capitalize">
+                            {despesa.tipo_despesa}
+                          </span>
+                          <p className="text-sm font-semibold text-navy truncate mt-0.5">
+                            {despesa.obra?.nome || 'Oficina'}
+                          </p>
+                          {despesa.descricao && (
+                            <p className="text-xs text-gray-muted mt-0.5 truncate">{despesa.descricao}</p>
+                          )}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-base font-bold text-navy">
+                            {Number(despesa.valor).toFixed(2)} €
+                          </p>
+                          <div className="mt-1">{getStatusBadge(despesa.status)}</div>
+                        </div>
+                      </div>
+
+                      {/* Divider */}
+                      <div className="border-t border-gray-border/70 mb-3" />
+
+                      {/* Data */}
+                      <p className="text-xs text-gray-muted capitalize">
                         {formatDate(despesa.data_despesa)}
                       </p>
+
+                      {/* Acções */}
+                      <div className="border-t border-gray-border/70 mt-3 pt-2.5 flex gap-2">
+                        {/* Ver recibos */}
+                        <button
+                          onClick={() => setViewDespesa(despesa)}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-gray-border py-1.5 text-xs font-semibold text-gray-text hover:border-navy hover:text-navy transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" />
+                          </svg>
+                          {despesa.recibos?.length ?? 0} recibo(s)
+                        </button>
+
+                        {/* Editar e Apagar — só pendentes */}
+                        {despesa.status === 'pendente' && (
+                          <>
+                            <button
+                              onClick={() => setEditDespesa(despesa)}
+                              className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-gray-border py-1.5 text-xs font-semibold text-gray-text hover:border-navy hover:text-navy transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                              </svg>
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => setDeleteDespesa(despesa)}
+                              className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-error/25 py-1.5 text-xs font-semibold text-error hover:bg-error/5 transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                              </svg>
+                              Apagar
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-
-                  {/* Acções */}
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-border">
-                    {/* Ver recibos */}
-                    <button
-                      onClick={() => setViewDespesa(despesa)}
-                      className="flex items-center gap-1 text-xs text-accent-blue hover:underline"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" />
-                      </svg>
-                      {despesa.recibos?.length ?? 0} recibo(s)
-                    </button>
-
-                    {/* Editar e Apagar — só pendentes */}
-                    {despesa.status === 'pendente' && (
-                      <>
-                        <span className="text-gray-border">·</span>
-                        <button
-                          onClick={() => setEditDespesa(despesa)}
-                          className="flex items-center gap-1 text-xs text-gray-muted hover:text-navy"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                          </svg>
-                          Editar
-                        </button>
-                        <span className="text-gray-border">·</span>
-                        <button
-                          onClick={() => setDeleteDespesa(despesa)}
-                          className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                          </svg>
-                          Apagar
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))
@@ -294,32 +310,16 @@ export default function MinhasDespesasPage() {
       </Dialog>
 
       {/* Dialog confirmação de apagar */}
-      <Dialog open={!!deleteDespesa} onOpenChange={(o) => !o && setDeleteDespesa(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-navy font-bold">Apagar Despesa</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-gray-muted">
-            Tens a certeza que queres apagar esta despesa de{' '}
-            <span className="font-bold text-navy">
-              {deleteDespesa ? Number(deleteDespesa.valor).toFixed(2) + ' €' : ''}
-            </span>?
-            Esta acção não pode ser desfeita.
-          </p>
-          <div className="flex gap-3 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => setDeleteDespesa(null)}>
-              Cancelar
-            </Button>
-            <Button
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-              disabled={deleteDespesaMutation.isPending}
-              onClick={handleDelete}
-            >
-              {deleteDespesaMutation.isPending ? 'A apagar...' : 'Apagar'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteDespesa}
+        onOpenChange={(o) => !o && setDeleteDespesa(null)}
+        title="Apagar Despesa"
+        description={`Tens a certeza que queres apagar esta despesa de ${deleteDespesa ? Number(deleteDespesa.valor).toFixed(2) + ' €' : ''}? Esta acção não pode ser desfeita.`}
+        confirmLabel="Apagar"
+        onConfirm={handleDelete}
+        isLoading={deleteDespesaMutation.isPending}
+        variant="danger"
+      />
     </div>
   );
 }

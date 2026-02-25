@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useApontamentos } from '@/lib/queries/apontamentos';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { PageHeader } from '@/components/shared/PageHeader';
 import { Clock, ListChecks, TrendingUp, Camera, LogOut } from 'lucide-react';
 
 export default function PerfilPage() {
@@ -31,6 +32,7 @@ export default function PerfilPage() {
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
+      <PageHeader title="Perfil" />
       {/* Profile Card */}
       <div className="bg-white rounded-3xl border border-gray-border p-8 text-center shadow-sm relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-emerald-600" />

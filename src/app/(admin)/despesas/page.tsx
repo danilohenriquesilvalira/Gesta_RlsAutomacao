@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { PageHeader } from '@/components/shared/PageHeader';
 import {
   useDespesas,
   useUpdateDespesaStatus,
@@ -109,10 +110,10 @@ export default function AdminDespesasPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-navy">Despesas</h1>
-        <p className="text-sm text-gray-muted">Gestão de despesas e depósitos</p>
-      </div>
+      <PageHeader
+        title="Despesas"
+        subtitle="Gestão de despesas e depósitos"
+      />
 
       <Tabs defaultValue="despesas">
         <TabsList className="mb-4">

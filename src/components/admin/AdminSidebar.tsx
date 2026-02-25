@@ -3,6 +3,10 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import {
+  LayoutDashboard, ClipboardList, Building2, Users,
+  CreditCard, BarChart2, LogOut, ChevronLeft, ChevronRight,
+} from 'lucide-react'
 
 interface AdminSidebarProps {
   currentPath: string
@@ -12,60 +16,22 @@ interface AdminSidebarProps {
   onToggle: () => void
 }
 
-const navLinks = [
+const navSections = [
   {
-    label: 'Painel',
-    path: '/dashboard',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect width="7" height="9" x="3" y="3" rx="1" /><rect width="7" height="5" x="14" y="3" rx="1" /><rect width="7" height="9" x="14" y="12" rx="1" /><rect width="7" height="5" x="3" y="16" rx="1" />
-      </svg>
-    ),
+    title: 'Gestão',
+    links: [
+      { label: 'Painel', path: '/dashboard', icon: <LayoutDashboard size={16} /> },
+      { label: 'Apontamentos', path: '/apontamentos', icon: <ClipboardList size={16} /> },
+      { label: 'Obras', path: '/obras', icon: <Building2 size={16} /> },
+      { label: 'Técnicos', path: '/tecnicos', icon: <Users size={16} /> },
+    ],
   },
   {
-    label: 'Apontamentos',
-    path: '/apontamentos',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="M12 11h4" /><path d="M12 16h4" /><path d="M8 11h.01" /><path d="M8 16h.01" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Obras',
-    path: '/obras',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" /><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" /><path d="M10 6h4" /><path d="M10 10h4" /><path d="M10 14h4" /><path d="M10 18h4" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Técnicos',
-    path: '/tecnicos',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Despesas',
-    path: '/despesas',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect width="20" height="14" x="2" y="5" rx="2" /><line x1="2" x2="22" y1="10" y2="10" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Relatórios',
-    path: '/relatorios',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M8 18v-2" /><path d="M12 18v-4" /><path d="M16 18v-6" />
-      </svg>
-    ),
+    title: 'Finanças',
+    links: [
+      { label: 'Despesas', path: '/despesas', icon: <CreditCard size={16} /> },
+      { label: 'Relatórios', path: '/relatorios', icon: <BarChart2 size={16} /> },
+    ],
   },
 ]
 
@@ -80,104 +46,93 @@ export function AdminSidebar({
   collapsed,
   onToggle,
 }: AdminSidebarProps) {
+  const firstName = userName.split(' ')[0]
+
   return (
     <aside
-      className={`hidden lg:flex sticky top-0 h-screen flex-col bg-navy text-white transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-60'
+      className={`hidden lg:flex sticky top-0 h-screen flex-col border-r border-gray-200 transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-64'
         }`}
+      style={{ backgroundColor: '#F6F4F5' }}
     >
-      {/* Logo */}
-      <div className={`flex items-center h-16 px-4 ${collapsed ? 'justify-center' : 'gap-3'}`}>
-        <div className="shrink-0 flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-900/40">
-          <span className="text-[11px] font-black text-white tracking-wider">RLS</span>
-        </div>
+      {/* ── Perfil do utilizador ── */}
+      <div className={`flex flex-col items-center border-b border-gray-200 shrink-0 ${collapsed ? 'py-5 px-2' : 'pt-8 pb-6 px-4'}`}>
+        <Avatar className={`shrink-0 transition-all duration-300 ring-2 ring-white shadow-md ${collapsed ? 'h-9 w-9' : 'h-16 w-16'}`}>
+          <AvatarFallback className={`bg-navy text-white font-bold ${collapsed ? 'text-[10px]' : 'text-base'}`}>
+            {getInitials(userName)}
+          </AvatarFallback>
+        </Avatar>
         {!collapsed && (
-          <div className="flex flex-col leading-none">
-            <span className="text-[13px] font-bold text-white tracking-wide">Automação</span>
-            <span className="text-[10px] font-medium text-emerald-400 tracking-widest uppercase mt-0.5">Industrial</span>
+          <div className="text-center mt-4">
+            <p className="text-[14px] font-bold text-navy leading-tight">{firstName}</p>
+            <p className="text-[11px] text-gray-400 font-medium mt-1">Administrador</p>
           </div>
         )}
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 flex flex-col gap-1 px-3 py-2 overflow-y-auto">
-        {navLinks.map((link) => {
-          const isActive =
-            currentPath === link.path ||
-            (link.path !== '/dashboard' && currentPath.startsWith(link.path))
-          return (
-            <Link
-              key={link.path}
-              to={link.path}
-              title={collapsed ? link.label : undefined}
-              className={`group flex items-center rounded-lg transition-all duration-150 ${collapsed ? 'justify-center h-10 w-10 mx-auto' : 'gap-3 px-3 h-10'
-                } ${isActive
-                  ? 'bg-accent-blue text-white shadow-md shadow-accent-blue/25'
-                  : 'text-white/60 hover:bg-white/8 hover:text-white'
-                }`}
-            >
-              <span className="shrink-0">{link.icon}</span>
-              {!collapsed && (
-                <span className="text-[13px] font-medium">{link.label}</span>
-              )}
-            </Link>
-          )
-        })}
+      {/* ── Navegação ── */}
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
+        {navSections.map((section) => (
+          <div key={section.title}>
+            {!collapsed && (
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-2">
+                {section.title}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.links.map((link) => {
+                const isActive =
+                  currentPath === link.path ||
+                  (link.path !== '/dashboard' && currentPath.startsWith(link.path))
+                return (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    title={collapsed ? link.label : undefined}
+                    className={`group flex items-center rounded-xl transition-all duration-150 ${collapsed ? 'justify-center h-10 w-10 mx-auto' : 'gap-3 px-3 h-11'
+                      } ${isActive
+                        ? 'bg-white text-navy shadow-sm border border-gray-200'
+                        : 'text-gray-500 hover:bg-white/80 hover:text-gray-800'
+                      }`}
+                  >
+                    <span className={`shrink-0 transition-colors ${isActive ? 'text-navy' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                      {link.icon}
+                    </span>
+                    {!collapsed && (
+                      <span className={`text-[13px] ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                        {link.label}
+                      </span>
+                    )}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      {/* Collapse toggle */}
-      <div className="px-3 py-2">
+      {/* ── Toggle colapso ── */}
+      <div className="px-3 py-2 border-t border-gray-200 shrink-0">
         <button
           onClick={onToggle}
-          className={`flex items-center rounded-lg h-9 w-full transition-colors text-white/40 hover:bg-white/8 hover:text-white ${collapsed ? 'justify-center' : 'px-3 gap-3'
+          className={`flex items-center rounded-xl h-9 w-full transition-colors text-gray-400 hover:bg-gray-100 hover:text-gray-600 ${collapsed ? 'justify-center' : 'px-3 gap-2.5'
             }`}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            {collapsed
-              ? <path d="m9 18 6-6-6-6" />
-              : <path d="m15 18-6-6 6-6" />
-            }
-          </svg>
-          {!collapsed && <span className="text-xs font-medium">Ocultar menu</span>}
+          {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+          {!collapsed && <span className="text-[12px] font-medium">Ocultar menu</span>}
         </button>
       </div>
 
-      {/* User */}
-      <div className="border-t border-white/10 p-3">
-        <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
-          <Avatar className="h-8 w-8 shrink-0">
-            <AvatarFallback className="bg-accent-blue text-[11px] font-bold text-white">
-              {getInitials(userName)}
-            </AvatarFallback>
-          </Avatar>
-          {!collapsed && (
-            <>
-              <div className="flex-1 min-w-0">
-                <p className="truncate text-[13px] font-medium text-white">{userName}</p>
-                <p className="text-[11px] text-white/40">Admin</p>
-              </div>
-              <button
-                onClick={onLogout}
-                className="shrink-0 rounded-md p-1.5 text-white/40 hover:bg-white/8 hover:text-white transition-colors"
-                title="Sair"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" />
-                </svg>
-              </button>
-            </>
-          )}
-        </div>
-        {collapsed && (
-          <button
-            onClick={onLogout}
-            className="mt-2 flex w-full justify-center rounded-md p-1.5 text-white/40 hover:bg-white/8 hover:text-white transition-colors"
-            title="Sair"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" />
-            </svg>
-          </button>
-        )}
+      {/* ── Terminar sessão ── */}
+      <div className="px-3 pb-4 shrink-0">
+        <button
+          onClick={onLogout}
+          title="Terminar sessão"
+          className={`flex items-center rounded-xl h-10 w-full transition-colors text-gray-400 hover:bg-red-50 hover:text-red-500 ${collapsed ? 'justify-center' : 'px-3 gap-2.5'
+            }`}
+        >
+          <LogOut size={15} />
+          {!collapsed && <span className="text-[13px] font-medium">Terminar sessão</span>}
+        </button>
       </div>
     </aside>
   )

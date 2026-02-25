@@ -54,7 +54,7 @@ export interface Obra {
 export interface Apontamento {
   id: string;
   tecnico_id: string;
-  obra_id: string;
+  obra_id: string | null;
   tipo_servico: string;
   tipo_hora: TipoHora;
   hora_entrada: string;
@@ -82,7 +82,7 @@ export interface Foto {
 export interface OfflineApontamento {
   local_id: string;
   tecnico_id: string;
-  obra_id: string;
+  obra_id: string | null;
   tipo_servico: string;
   tipo_hora: TipoHora;
   hora_entrada: string;

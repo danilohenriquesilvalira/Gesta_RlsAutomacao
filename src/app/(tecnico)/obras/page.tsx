@@ -5,12 +5,11 @@ import { useObras, useCreateObra, useUpdateObra, useDeleteObra } from '@/lib/que
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -21,6 +20,33 @@ import {
 } from '@/components/ui/select';
 import type { Obra, ObraStatus } from '@/types';
 import { toast } from 'sonner';
+
+// ─── Dialog style constants ────────────────────────────────────────────────────
+const sDlg     = 'flex flex-col w-[92vw] sm:w-full sm:max-w-lg max-h-[85vh] sm:max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl border-slate-200 shadow-xl bg-white';
+const sInput   = 'h-10 rounded-xl border-slate-200 bg-slate-50 text-sm shadow-none';
+const sInputErr= 'h-10 rounded-xl border-red-400 bg-red-50 text-sm shadow-none';
+const sTrigger = '!h-10 !py-0 rounded-xl border-slate-200 bg-slate-50 shadow-none text-sm';
+
+const DlgIconClose = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 6L6 18M6 6l12 12" />
+  </svg>
+);
+const DlgIconX = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 6L6 18M6 6l12 12" />
+  </svg>
+);
+const DlgIconArrow = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+  </svg>
+);
+const DlgLbl = ({ children }: { children: React.ReactNode }) => (
+  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{children}</p>
+);
+const DlgErr = ({ msg }: { msg?: string }) =>
+  msg ? <p className="text-[10px] text-red-500 font-medium mt-0.5">{msg}</p> : null;
 
 const STATUS_LABELS: Record<ObraStatus, string> = {
   ativa: 'Ativa',
@@ -381,16 +407,15 @@ export default function MinhasObrasPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-navy">Obras</h1>
-          <p className="text-sm text-gray-muted">Gerir os seus projetos e obras</p>
-        </div>
-        <Button onClick={openCreate} className="bg-navy hover:bg-navy-light text-white shrink-0 text-sm">
-          + Nova Obra
-        </Button>
-      </div>
+      <PageHeader
+        title="Obras"
+        subtitle="Gerir os seus projetos e obras"
+        actions={
+          <Button onClick={openCreate} className="bg-navy hover:bg-navy-light text-white shrink-0 text-sm">
+            + Nova Obra
+          </Button>
+        }
+      />
 
       {/* Filtros */}
       <div className="flex gap-2 flex-wrap">
@@ -454,53 +479,67 @@ export default function MinhasObrasPage() {
 
       {/* ── Modal Criar / Editar ── */}
       <Dialog open={modalOpen} onOpenChange={(o) => !o && setModalOpen(false)}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-navy font-bold">
-              {editingObra ? 'Editar Obra' : 'Nova Obra'}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className={sDlg} showCloseButton={false}>
 
-          <div className="space-y-4 pt-1">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 shrink-0">
+            <div>
+              <h2 className="text-[15px] font-semibold text-slate-900 leading-tight">
+                {editingObra ? 'Editar Obra' : 'Nova Obra'}
+              </h2>
+              <p className="text-[11px] text-slate-400 mt-0.5">Preencha os dados da obra</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="flex items-center justify-center w-9 h-9 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors shrink-0"
+            >
+              <DlgIconClose />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 space-y-3">
+
             {/* Código */}
-            <div className="space-y-1.5">
-              <Label>Código *</Label>
+            <div>
+              <DlgLbl>Código *</DlgLbl>
               <Input
                 placeholder="Ex: OB-042"
                 value={form.codigo}
                 onChange={(e) => setForm((p) => ({ ...p, codigo: e.target.value }))}
-                className={errors.codigo ? 'border-error' : ''}
+                className={errors.codigo ? sInputErr : sInput}
               />
-              {errors.codigo && <p className="text-[11px] text-error">{errors.codigo}</p>}
+              <DlgErr msg={errors.codigo} />
             </div>
 
             {/* Nome */}
-            <div className="space-y-1.5">
-              <Label>Nome da Obra *</Label>
+            <div>
+              <DlgLbl>Nome da Obra *</DlgLbl>
               <Input
                 placeholder="Descrição / nome do projeto"
                 value={form.nome}
                 onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))}
-                className={errors.nome ? 'border-error' : ''}
+                className={errors.nome ? sInputErr : sInput}
               />
-              {errors.nome && <p className="text-[11px] text-error">{errors.nome}</p>}
+              <DlgErr msg={errors.nome} />
             </div>
 
             {/* Cliente */}
-            <div className="space-y-1.5">
-              <Label>Cliente *</Label>
+            <div>
+              <DlgLbl>Cliente *</DlgLbl>
               <Input
                 placeholder="Nome do cliente (ex: EDP, Galp...)"
                 value={form.cliente}
                 onChange={(e) => setForm((p) => ({ ...p, cliente: e.target.value }))}
-                className={errors.cliente ? 'border-error' : ''}
+                className={errors.cliente ? sInputErr : sInput}
               />
-              {errors.cliente && <p className="text-[11px] text-error">{errors.cliente}</p>}
+              <DlgErr msg={errors.cliente} />
             </div>
 
             {/* Localização */}
-            <div className="space-y-1.5">
-              <Label>Localização</Label>
+            <div>
+              <DlgLbl>Localização</DlgLbl>
               <LocationPicker
                 localizacao={form.localizacao}
                 lat={form.lat}
@@ -511,10 +550,10 @@ export default function MinhasObrasPage() {
 
             {/* Estado — só na edição */}
             {editingObra && (
-              <div className="space-y-1.5">
-                <Label>Estado</Label>
+              <div>
+                <DlgLbl>Estado</DlgLbl>
                 <Select value={statusAtual} onValueChange={(v) => setStatusAtual(v as ObraStatus)}>
-                  <SelectTrigger>
+                  <SelectTrigger className={sTrigger}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -526,49 +565,53 @@ export default function MinhasObrasPage() {
               </div>
             )}
 
-            <div className="flex gap-3 pt-2">
-              <Button variant="outline" className="flex-1" onClick={() => setModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button
-                className="flex-1 bg-navy hover:bg-navy-light text-white"
-                onClick={handleSave}
-                disabled={isBusy}
-              >
-                {isBusy ? 'A guardar...' : editingObra ? 'Guardar alterações' : 'Criar Obra'}
-              </Button>
-            </div>
           </div>
+
+          {/* Footer */}
+          <div className="flex gap-3 px-4 py-3.5 border-t border-slate-100 shrink-0 bg-white">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="flex items-center justify-center gap-2 h-10 px-5 rounded-xl border border-slate-200 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+            >
+              <DlgIconX /> Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isBusy}
+              className="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl bg-navy text-sm font-semibold text-white hover:bg-navy-light transition-colors shadow-sm shadow-navy/20 disabled:opacity-60"
+            >
+              {isBusy ? 'A guardar...' : (<>{editingObra ? 'Guardar Alterações' : 'Criar Obra'} <DlgIconArrow /></>)}
+            </button>
+          </div>
+
         </DialogContent>
       </Dialog>
 
       {/* ── Confirmar eliminação ── */}
-      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-navy">Eliminar Obra</DialogTitle>
-          </DialogHeader>
-          <div className="rounded-lg bg-error/5 border border-error/20 p-3 my-1">
-            <p className="text-sm font-semibold text-navy">{deleteTarget?.codigo} — {deleteTarget?.nome}</p>
-            <p className="text-xs text-gray-muted mt-0.5">{deleteTarget?.cliente}</p>
-          </div>
-          <p className="text-sm text-gray-text">
-            Esta ação é permanente. As despesas associadas <strong>não serão eliminadas</strong>.
-          </p>
-          <div className="flex gap-3 pt-1">
-            <Button variant="outline" className="flex-1" onClick={() => setDeleteTarget(null)}>
-              Cancelar
-            </Button>
-            <Button
-              className="flex-1 bg-error hover:bg-error/90 text-white"
-              onClick={handleDelete}
-              disabled={deleteObra.isPending}
-            >
-              {deleteObra.isPending ? 'A eliminar...' : 'Eliminar obra'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title="Eliminar Obra"
+        description="Esta acção é permanente. As despesas associadas não serão eliminadas."
+        details={
+          deleteTarget && (
+            <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2.5">
+              <p className="text-sm font-semibold text-slate-800">
+                {deleteTarget.codigo} — {deleteTarget.nome}
+              </p>
+              {deleteTarget.cliente && (
+                <p className="text-xs text-slate-500 mt-0.5">{deleteTarget.cliente}</p>
+              )}
+            </div>
+          )
+        }
+        confirmLabel="Eliminar Obra"
+        onConfirm={handleDelete}
+        isLoading={deleteObra.isPending}
+        variant="danger"
+      />
     </div>
   );
 }
@@ -584,6 +627,12 @@ interface ObraCardProps {
   onDelete: () => void;
 }
 
+const OBRA_BAR: Record<ObraStatus, string> = {
+  ativa: 'bg-success',
+  pausada: 'bg-warning',
+  concluida: 'bg-gray-muted',
+};
+
 function ObraCard({ obra, isUpdating, onEdit, onFinalize, onReactivate, onDelete }: ObraCardProps) {
   const mapsUrl =
     obra.lat && obra.lng
@@ -593,122 +642,127 @@ function ObraCard({ obra, isUpdating, onEdit, onFinalize, onReactivate, onDelete
       : null;
 
   return (
-    <div className={`bg-white rounded-xl border p-4 flex flex-col gap-3 transition-all ${
-      isUpdating ? 'opacity-60 border-gray-border' : 'border-gray-border hover:border-navy/25 hover:shadow-sm'
+    <div className={`relative bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden transition-shadow ${
+      isUpdating ? 'opacity-60' : 'hover:shadow-md'
     }`}>
-      {/* Topo */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold text-accent-blue tracking-widest uppercase mb-0.5">
-            {obra.codigo}
-          </p>
-          <p className="font-semibold text-navy text-[15px] leading-snug">{obra.nome}</p>
-        </div>
-        <span className={`shrink-0 mt-0.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide ${STATUS_COLORS[obra.status]}`}>
-          {STATUS_LABELS[obra.status]}
-        </span>
-      </div>
+      {/* Barra de accent à esquerda */}
+      <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${OBRA_BAR[obra.status]}`} />
 
-      {/* Info */}
-      <div className="space-y-1.5 flex-1">
-        {/* Cliente */}
-        <div className="flex items-center gap-2 text-xs text-gray-muted">
-          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-            <rect width="20" height="14" x="2" y="7" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-          </svg>
-          <span className="truncate">{obra.cliente}</span>
+      <div className="pl-5 pr-4 pt-4 pb-3 flex flex-col gap-0">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] font-black text-accent-blue tracking-widest uppercase">
+              {obra.codigo}
+            </span>
+            <p className="font-semibold text-navy text-[15px] leading-snug mt-0.5">{obra.nome}</p>
+          </div>
+          <span className={`shrink-0 mt-0.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide ${STATUS_COLORS[obra.status]}`}>
+            {STATUS_LABELS[obra.status]}
+          </span>
         </div>
 
-        {/* Executante */}
-        {obra.executante?.full_name && (
+        {/* Divider */}
+        <div className="border-t border-gray-border/70 mb-3" />
+
+        {/* Info */}
+        <div className="space-y-1.5">
+          {/* Cliente */}
           <div className="flex items-center gap-2 text-xs text-gray-muted">
             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+              <rect width="20" height="14" x="2" y="7" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
             </svg>
-            <span className="truncate">{obra.executante.full_name}</span>
+            <span className="truncate">{obra.cliente}</span>
           </div>
-        )}
 
-        {obra.localizacao && (
-          <div className="flex items-start gap-2 text-xs text-gray-muted">
-            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
-              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
-            </svg>
-            {mapsUrl ? (
-              <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
-                className="hover:text-accent-blue hover:underline transition-colors"
-                onClick={(e) => e.stopPropagation()}>
-                {obra.localizacao}
-              </a>
-            ) : (
-              <span>{obra.localizacao}</span>
-            )}
-          </div>
-        )}
-      </div>
+          {/* Executante */}
+          {obra.executante?.full_name && (
+            <div className="flex items-center gap-2 text-xs text-gray-muted">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+              </svg>
+              <span className="truncate">{obra.executante.full_name}</span>
+            </div>
+          )}
 
-      {/* Progresso */}
-      {obra.progresso > 0 && (
-        <div className="space-y-1">
-          <div className="flex justify-between text-[10px] text-gray-muted">
-            <span>Progresso</span>
-            <span className="font-semibold">{obra.progresso}%</span>
-          </div>
-          <div className="h-1.5 w-full rounded-full bg-gray-100">
-            <div className="h-1.5 rounded-full bg-accent-blue" style={{ width: `${obra.progresso}%` }} />
-          </div>
+          {/* Localização */}
+          {obra.localizacao && (
+            <div className="flex items-start gap-2 text-xs text-gray-muted">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
+              </svg>
+              {mapsUrl ? (
+                <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                  className="hover:text-accent-blue hover:underline transition-colors line-clamp-2"
+                  onClick={(e) => e.stopPropagation()}>
+                  {obra.localizacao}
+                </a>
+              ) : (
+                <span className="line-clamp-2">{obra.localizacao}</span>
+              )}
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Ações */}
-      <div className="flex items-center gap-1 pt-2 border-t border-gray-border/70">
-        <button
-          onClick={onEdit}
-          className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-medium text-gray-text hover:text-navy py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-          </svg>
-          Editar
-        </button>
-
-        <div className="w-px h-5 bg-gray-border/60" />
-
-        {obra.status !== 'concluida' ? (
-          <button
-            onClick={onFinalize}
-            disabled={isUpdating}
-            className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-medium text-emerald-600 hover:text-emerald-700 py-1.5 rounded-lg hover:bg-emerald-50 transition-colors disabled:opacity-50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-            Finalizar
-          </button>
-        ) : (
-          <button
-            onClick={onReactivate}
-            disabled={isUpdating}
-            className="flex-1 flex items-center justify-center gap-1.5 text-[11px] font-medium text-accent-blue hover:text-accent-blue/80 py-1.5 rounded-lg hover:bg-accent-blue/5 transition-colors disabled:opacity-50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
-            </svg>
-            Reativar
-          </button>
+        {/* Progresso */}
+        {obra.progresso > 0 && (
+          <div className="mt-3 space-y-1">
+            <div className="flex justify-between text-[10px] text-gray-muted">
+              <span>Progresso</span>
+              <span className="font-semibold">{obra.progresso}%</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-gray-100">
+              <div className="h-1.5 rounded-full bg-accent-blue transition-all" style={{ width: `${obra.progresso}%` }} />
+            </div>
+          </div>
         )}
 
-        <div className="w-px h-5 bg-gray-border/60" />
+        {/* Ações */}
+        <div className="border-t border-gray-border/70 mt-3 pt-2.5 flex gap-1.5">
+          <button
+            onClick={onEdit}
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-gray-border py-1.5 text-xs font-semibold text-gray-text hover:border-navy hover:text-navy transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+            </svg>
+            Editar
+          </button>
 
-        <button
-          onClick={onDelete}
-          className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-muted hover:text-error hover:bg-error/8 transition-colors"
-          title="Eliminar obra"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-          </svg>
-        </button>
+          {obra.status !== 'concluida' ? (
+            <button
+              onClick={onFinalize}
+              disabled={isUpdating}
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-success/25 py-1.5 text-xs font-semibold text-success hover:bg-success/5 transition-colors disabled:opacity-50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+              Finalizar
+            </button>
+          ) : (
+            <button
+              onClick={onReactivate}
+              disabled={isUpdating}
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-accent-blue/25 py-1.5 text-xs font-semibold text-accent-blue hover:bg-accent-blue/5 transition-colors disabled:opacity-50"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" />
+              </svg>
+              Reativar
+            </button>
+          )}
+
+          <button
+            onClick={onDelete}
+            className="flex items-center justify-center w-9 rounded-lg border border-error/25 text-error hover:bg-error/5 transition-colors"
+            title="Eliminar obra"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );
