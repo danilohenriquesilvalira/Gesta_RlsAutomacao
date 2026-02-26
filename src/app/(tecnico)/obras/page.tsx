@@ -299,6 +299,8 @@ export default function MinhasObrasPage() {
 
   const [filter, _setFilter] = useState<ObraStatus | 'todas'>('ativa');
   const setFilter = (v: ObraStatus | 'todas') => { _setFilter(v); setPage(0); };
+  const [search, _setSearch] = useState('');
+  const setSearch = (v: string) => { _setSearch(v); setPage(0); };
   const [modalOpen, setModalOpen] = useState(false);
   const [editingObra, setEditingObra] = useState<Obra | null>(null);
   const [form, setForm] = useState<FormData>(emptyForm);
@@ -313,10 +315,17 @@ export default function MinhasObrasPage() {
   const obraPausadas  = useMemo(() => obras.filter(o => o.status === 'pausada').length,   [obras]);
   const obraConcluidas= useMemo(() => obras.filter(o => o.status === 'concluida').length, [obras]);
 
-  const filteredObras = useMemo(() =>
-    filter === 'todas' ? obras : obras.filter(o => o.status === filter),
-    [obras, filter]
-  );
+  const filteredObras = useMemo(() => {
+    const byStatus = filter === 'todas' ? obras : obras.filter(o => o.status === filter);
+    if (!search.trim()) return byStatus;
+    const q = search.toLowerCase();
+    return byStatus.filter(o =>
+      o.nome.toLowerCase().includes(q) ||
+      o.codigo.toLowerCase().includes(q) ||
+      o.cliente.toLowerCase().includes(q) ||
+      (o.localizacao ?? '').toLowerCase().includes(q)
+    );
+  }, [obras, filter, search]);
   const totalPages = Math.max(1, Math.ceil(filteredObras.length / ITEMS_PER_PAGE));
   const paginated  = useMemo(() =>
     filteredObras.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE),
@@ -496,6 +505,28 @@ export default function MinhasObrasPage() {
         )}
       </div>
 
+      {/* ── Pesquisa ── */}
+      <div className="lg:shrink-0 relative">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-muted pointer-events-none">
+          <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Pesquisar por nome, código ou cliente..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full h-10 pl-10 pr-9 rounded-xl border border-gray-border bg-white text-sm text-gray-text placeholder:text-gray-muted/50 focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy/30 transition-all"
+        />
+        {search && (
+          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-muted hover:text-gray-text transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
       {/* ── Filtro segmented ── */}
       <div className="lg:shrink-0">
         <div className="inline-flex items-center bg-gray-100 rounded-xl p-[3px] gap-[2px]">
@@ -535,9 +566,19 @@ export default function MinhasObrasPage() {
             </div>
             <div className="space-y-1">
               <p className="text-sm font-semibold text-navy">Nenhuma obra encontrada</p>
+              <p className="text-xs text-gray-muted">
+                {search ? 'Tente outro termo de pesquisa.' : 'Tente outro filtro.'}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {search && (
+                <button className="text-xs text-accent-blue hover:underline font-medium" onClick={() => setSearch('')}>
+                  Limpar pesquisa
+                </button>
+              )}
               {filter !== 'todas' && (
                 <button className="text-xs text-accent-blue hover:underline font-medium" onClick={() => setFilter('todas')}>
-                  Ver todas as obras
+                  Ver todas
                 </button>
               )}
             </div>

@@ -18,7 +18,7 @@ export function useTimer() {
 
   useEffect(() => {
     // Restore from localStorage
-    const saved = localStorage.getItem('fieldsync_timer');
+    const saved = localStorage.getItem('gestao_rls_timer');
     if (saved) {
       const parsed = JSON.parse(saved) as TimerState;
       if (parsed.isRunning && parsed.startTime) {
@@ -40,7 +40,7 @@ export function useTimer() {
     }
 
     // Persist
-    localStorage.setItem('fieldsync_timer', JSON.stringify(state));
+    localStorage.setItem('gestao_rls_timer', JSON.stringify(state));
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -54,12 +54,12 @@ export function useTimer() {
 
   const stop = useCallback(() => {
     setState((prev) => ({ ...prev, isRunning: false }));
-    localStorage.removeItem('fieldsync_timer');
+    localStorage.removeItem('gestao_rls_timer');
   }, []);
 
   const reset = useCallback(() => {
     setState({ isRunning: false, startTime: null, elapsed: 0 });
-    localStorage.removeItem('fieldsync_timer');
+    localStorage.removeItem('gestao_rls_timer');
   }, []);
 
   const formatElapsed = useCallback((ms: number) => {

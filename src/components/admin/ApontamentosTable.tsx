@@ -86,7 +86,7 @@ export function ApontamentosTable({
       <Table>
         <TableHeader>
           <TableRow className="border-gray-border/60 hover:bg-transparent bg-gray-bg/40">
-            <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted pl-5 h-9">Técnico</TableHead>
+            <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted pl-5 h-9">Funcionário</TableHead>
             <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9">Obra</TableHead>
             <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9 hidden md:table-cell">Serviço</TableHead>
             <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9">Data</TableHead>

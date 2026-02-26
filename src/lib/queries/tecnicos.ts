@@ -115,6 +115,22 @@ export function useUpdateTecnico() {
   });
 }
 
+export function useDeleteFuncionario() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const supabase = createClient();
+      const { error } = await supabase.rpc('delete_user_complete', { user_id: id });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tecnicos'] });
+      queryClient.invalidateQueries({ queryKey: ['tecnicos-horas'] });
+    },
+  });
+}
+
 export function useTecnico(id: string) {
   return useQuery({
     queryKey: ['tecnicos', id],

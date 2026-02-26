@@ -1,7 +1,7 @@
 {
-  "name": "FieldSync — Timesheet",
-  "short_name": "FieldSync",
-  "description": "Sistema de apontamento de horas para técnicos de campo",
+  "name": "Gestão RLS",
+  "short_name": "Gestão RLS",
+  "description": "Sistema de gestão de obras e apontamentos — RLS Automação Industrial",
   "start_url": "/inicio",
   "display": "standalone",
   "background_color": "#ffffff",

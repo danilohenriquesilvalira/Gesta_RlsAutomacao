@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -58,36 +59,49 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 interface DepositoModalProps {
-  open:         boolean;
-  onClose:      () => void;
-  tecnicos:     Profile[];
+  open:              boolean;
+  onClose:           () => void;
+  tecnicos:          Profile[];
   onSubmit: (data: {
     tecnico_id: string;
     valor: number;
     data_deposito: string;
     descricao?: string;
   }) => void;
-  isSubmitting?: boolean;
+  isSubmitting?:     boolean;
+  defaultTecnicoId?: string;
 }
 
-export function DepositoModal({ open, onClose, tecnicos, onSubmit, isSubmitting }: DepositoModalProps) {
+export function DepositoModal({ open, onClose, tecnicos, onSubmit, isSubmitting, defaultTecnicoId }: DepositoModalProps) {
   const today = new Date().toISOString().split('T')[0];
+  const [selectedTecnicoId, setSelectedTecnicoId] = useState(defaultTecnicoId ?? '');
 
   const {
     register, handleSubmit, setValue, reset,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { data_deposito: today },
+    defaultValues: { data_deposito: today, tecnico_id: defaultTecnicoId ?? '' },
   });
+
+  // Pré-seleccionar técnico quando o modal abre
+  useEffect(() => {
+    if (open) {
+      const tid = defaultTecnicoId ?? '';
+      setSelectedTecnicoId(tid);
+      setValue('tecnico_id', tid, { shouldValidate: false });
+    }
+  }, [open, defaultTecnicoId, setValue]);
 
   function handleFormSubmit(data: FormData) {
     onSubmit({ ...data, descricao: data.descricao || undefined });
-    reset({ data_deposito: today });
+    reset({ data_deposito: today, tecnico_id: '' });
+    setSelectedTecnicoId('');
   }
 
   function handleClose() {
-    reset({ data_deposito: today });
+    reset({ data_deposito: today, tecnico_id: '' });
+    setSelectedTecnicoId('');
     onClose();
   }
 
@@ -116,8 +130,14 @@ export function DepositoModal({ open, onClose, tecnicos, onSubmit, isSubmitting 
 
             {/* Técnico */}
             <div>
-              <Lbl>Técnico</Lbl>
-              <Select onValueChange={(v) => setValue('tecnico_id', v, { shouldValidate: true })}>
+              <Lbl>Funcionário</Lbl>
+              <Select
+                value={selectedTecnicoId}
+                onValueChange={(v) => {
+                  setSelectedTecnicoId(v);
+                  setValue('tecnico_id', v, { shouldValidate: true });
+                }}
+              >
                 <SelectTrigger className={errors.tecnico_id ? sTriggerErr : sTrigger}>
                   <SelectValue placeholder="Selecione o técnico" />
                 </SelectTrigger>

@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { RlsLogo } from '@/components/shared/RlsLogo';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -53,18 +54,28 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-bg px-4">
-      <Card className="w-full max-w-md shadow-lg border-gray-border">
-        <CardHeader className="text-center space-y-3 pb-6">
-          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-xl shadow-emerald-200">
-            <span className="text-lg font-black text-white tracking-wider">RLS</span>
+    <div className="relative min-h-screen flex items-center justify-center bg-gray-bg px-4 overflow-hidden">
+
+      {/* Imagem de Fundo com Transparência */}
+      <div
+        className="absolute inset-0 z-0 pointer-events-none"
+        style={{
+          backgroundImage: 'url("/RLS.png")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          opacity: 0.4 // Ajuste aqui a transparência (0.1 = 10%, 1.0 = 100%)
+        }}
+      />
+
+      {/* Card de Login - Adicionada a classe z-10 para ficar acima do fundo */}
+      <Card className="relative z-10 w-full max-w-md shadow-lg border-gray-border bg-white/90 backdrop-blur-sm">
+        <CardHeader className="text-center space-y-4 pb-6 pt-8">
+          <div className="flex justify-center">
+            <RlsLogo height={54} />
           </div>
-          <div>
-            <CardTitle className="text-xl font-bold text-navy">Automação Industrial</CardTitle>
-            <CardDescription className="text-xs font-medium text-emerald-600 tracking-widest uppercase mt-1">
-              Portal de Gestão
-            </CardDescription>
-          </div>
+          <p className="text-[11px] font-semibold text-gray-muted tracking-[0.18em] uppercase">
+            Portal de Gestão
+          </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

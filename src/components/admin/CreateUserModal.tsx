@@ -173,7 +173,7 @@ export function CreateUserModal({ open, onClose }: CreateUserModalProps) {
                   <SelectValue placeholder="Selecione o nível de acesso" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tecnico">Técnico (Campo)</SelectItem>
+                  <SelectItem value="tecnico">Funcionário (Campo)</SelectItem>
                   <SelectItem value="admin">Administrador (Gestão)</SelectItem>
                 </SelectContent>
               </Select>

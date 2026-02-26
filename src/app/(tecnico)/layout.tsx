@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { TecnicoSidebar } from '@/components/tecnico/TecnicoSidebar';
 import { BottomNav } from '@/components/tecnico/BottomNav';
 import { OfflineBanner } from '@/components/tecnico/OfflineBanner';
+import { RlsLogo } from '@/components/shared/RlsLogo';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useEffect, useState } from 'react';
 
@@ -47,14 +48,8 @@ export default function TecnicoLayout() {
       {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Mobile top bar */}
-        <header className="shrink-0 z-30 flex items-center gap-3 bg-white border-b border-gray-border px-4 h-14 lg:hidden">
-          <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-md">
-            <span className="text-[10px] font-black text-white tracking-wider">RLS</span>
-          </div>
-          <div className="flex flex-col leading-none">
-            <span className="text-[13px] font-bold text-navy tracking-wide">Automação</span>
-            <span className="text-[10px] font-medium text-emerald-600 tracking-widest uppercase mt-0.5">Industrial</span>
-          </div>
+        <header className="shrink-0 z-30 flex items-center px-4 h-14 bg-white border-b border-gray-border lg:hidden">
+          <RlsLogo height={32} />
         </header>
 
         {/* Page content — único container com scroll */}

@@ -22,7 +22,7 @@ const navSections = [
     links: [
       { label: 'Painel', path: '/dashboard', icon: <LayoutDashboard size={16} /> },
       { label: 'Apontamentos', path: '/apontamentos', icon: <ClipboardList size={16} /> },
-      { label: 'Técnicos', path: '/tecnicos', icon: <Users size={16} /> },
+      { label: 'Funcionários', path: '/tecnicos', icon: <Users size={16} /> },
     ],
   },
   {

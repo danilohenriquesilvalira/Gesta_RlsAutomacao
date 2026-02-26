@@ -3,52 +3,64 @@
 import React, { useState } from 'react';
 import type { Despesa, DespesaStatus } from '@/types';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { Check, X } from 'lucide-react';
+import { Check, X, Eye, FileText } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface DespesasTableProps {
   despesas: Despesa[];
   onAprovar?: (id: string) => void;
   onRejeitar?: (id: string) => void;
   showActions?: boolean;
+  isLoading?: boolean;
 }
 
 function getInitials(name: string) {
   return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 }
-
 function formatDate(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-PT', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
+    day: '2-digit', month: '2-digit', year: 'numeric',
   });
 }
+function Sk({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse rounded bg-gray-200/80 ${className}`} />;
+}
 
-function getStatusBadge(status: DespesaStatus) {
-  switch (status) {
-    case 'pendente':
-      return <Badge className="border-amber-200 bg-amber-50 text-amber-700 font-bold text-[10px]">Pendente</Badge>;
-    case 'aprovada':
-      return <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 font-bold text-[10px]">Aprovada</Badge>;
-    case 'rejeitada':
-      return <Badge className="border-red-200 bg-red-50 text-red-700 font-bold text-[10px]">Rejeitada</Badge>;
-  }
+function StatusBadge({ status }: { status: DespesaStatus }) {
+  const map: Record<DespesaStatus, { label: string; cls: string }> = {
+    pendente: { label: 'Pendente', cls: 'bg-warning/10 text-warning border-warning/25' },
+    aprovada: { label: 'Aprovada', cls: 'bg-success/10 text-success border-success/25' },
+    rejeitada: { label: 'Rejeitada', cls: 'bg-error/10 text-error border-error/25' },
+  };
+  const s = map[status];
+  return (
+    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold', s.cls)}>
+      {s.label}
+    </span>
+  );
+}
+
+function TipoBadge({ tipo }: { tipo: string }) {
+  const colors: Record<string, string> = {
+    alojamento: 'bg-purple-50 text-purple-600 border-purple-200',
+    'alimentação': 'bg-orange-50 text-orange-600 border-orange-200',
+    transporte: 'bg-sky-50 text-sky-600 border-sky-200',
+    'combustível': 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    material: 'bg-teal-50 text-teal-600 border-teal-200',
+    outro: 'bg-gray-100 text-gray-500 border-gray-200',
+  };
+  const cls = colors[tipo] ?? 'bg-gray-100 text-gray-500 border-gray-200';
+  const label = tipo.charAt(0).toUpperCase() + tipo.slice(1);
+  return (
+    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold', cls)}>
+      {label}
+    </span>
+  );
 }
 
 export function DespesasTable({
@@ -56,6 +68,7 @@ export function DespesasTable({
   onAprovar,
   onRejeitar,
   showActions = true,
+  isLoading = false,
 }: DespesasTableProps) {
   const [viewDespesa, setViewDespesa] = useState<Despesa | null>(null);
 
@@ -64,110 +77,145 @@ export function DespesasTable({
       <div className="w-full">
         <Table>
           <TableHeader>
-            <TableRow className="border-gray-border hover:bg-transparent bg-gray-50/50">
-              <TableHead className="text-gray-muted pl-6 h-10">Técnico</TableHead>
-              <TableHead className="text-gray-muted text-center h-10">Obra</TableHead>
-              <TableHead className="text-gray-muted text-center h-10">Tipo</TableHead>
-              <TableHead className="text-gray-muted text-center h-10">Descrição</TableHead>
-              <TableHead className="text-gray-muted text-center h-10">Valor</TableHead>
-              <TableHead className="text-gray-muted text-center h-10">Data</TableHead>
-              <TableHead className="text-gray-muted text-center h-10">Status</TableHead>
-              {showActions && <TableHead className="text-right pr-6 h-10">Ações</TableHead>}
+            <TableRow className="border-gray-border/60 hover:bg-transparent bg-gray-bg/40">
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted pl-5 h-9">Funcionário</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9 hidden md:table-cell">Obra</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9">Tipo</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9 hidden lg:table-cell">Descrição</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9">Valor</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9 hidden sm:table-cell">Data</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9">Estado</TableHead>
+              {showActions && (
+                <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-right pr-5 h-9">Ações</TableHead>
+              )}
             </TableRow>
           </TableHeader>
+
           <TableBody>
-            {despesas.length === 0 ? (
+            {/* Loading skeletons */}
+            {isLoading ? (
+              Array.from({ length: 8 }).map((_, i) => (
+                <TableRow key={i} className="border-gray-border/40">
+                  <TableCell className="pl-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <Sk className="h-7 w-7 rounded-full shrink-0" />
+                      <Sk className="h-3.5 w-24" />
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center px-3 hidden md:table-cell"><Sk className="h-3.5 w-20 mx-auto" /></TableCell>
+                  <TableCell className="text-center px-3"><Sk className="h-5 w-16 mx-auto rounded-full" /></TableCell>
+                  <TableCell className="text-center px-3 hidden lg:table-cell"><Sk className="h-3.5 w-28 mx-auto" /></TableCell>
+                  <TableCell className="text-center px-3"><Sk className="h-3.5 w-16 mx-auto" /></TableCell>
+                  <TableCell className="text-center px-3 hidden sm:table-cell"><Sk className="h-3.5 w-20 mx-auto" /></TableCell>
+                  <TableCell className="text-center px-3"><Sk className="h-5 w-16 mx-auto rounded-full" /></TableCell>
+                  {showActions && <TableCell className="pr-5"><Sk className="h-7 w-20 ml-auto rounded-lg" /></TableCell>}
+                </TableRow>
+              ))
+            ) : despesas.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={showActions ? 8 : 7} className="py-10 text-center text-gray-muted">
-                  Nenhuma despesa encontrada.
+                <TableCell colSpan={showActions ? 8 : 7} className="py-16 text-center">
+                  <p className="text-sm font-semibold text-gray-muted">Nenhuma despesa encontrada</p>
+                  <p className="text-[11px] text-gray-muted/70 mt-1">Tente ajustar os filtros</p>
                 </TableCell>
               </TableRow>
             ) : (
               despesas.map((despesa) => (
                 <TableRow
                   key={despesa.id}
-                  className="border-gray-border hover:bg-gray-50/50 transition-colors cursor-pointer"
+                  className="border-gray-border/40 hover:bg-gray-bg/50 transition-colors cursor-pointer"
                   onClick={() => setViewDespesa(despesa)}
                 >
-                  <TableCell className="pl-6 py-3">
+                  {/* Técnico */}
+                  <TableCell className="pl-5 py-2.5">
                     <div className="flex items-center gap-2">
-                      <Avatar className="h-7 w-7">
-                        {despesa.tecnico?.avatar_url ? (
-                          <AvatarImage src={despesa.tecnico.avatar_url} alt={despesa.tecnico.full_name} />
-                        ) : null}
-                        <AvatarFallback className="bg-accent-blue/10 text-[9px] text-accent-blue font-bold">
-                          {despesa.tecnico ? getInitials(despesa.tecnico.full_name) : '??'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-bold text-navy truncate max-w-[120px]">
-                        {despesa.tecnico?.full_name || 'N/A'}
+                      <div className="h-7 w-7 rounded-full bg-navy flex items-center justify-center shrink-0 overflow-hidden">
+                        {despesa.tecnico?.avatar_url
+                          ? <img src={despesa.tecnico.avatar_url} alt={despesa.tecnico.full_name} className="w-full h-full object-cover" />
+                          : <span className="text-[9px] font-black text-white">{despesa.tecnico ? getInitials(despesa.tecnico.full_name) : '??'}</span>
+                        }
+                      </div>
+                      <span className="text-[12px] font-bold text-navy truncate max-w-[110px]">
+                        {despesa.tecnico?.full_name?.split(' ')[0] || 'N/A'}
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm text-center text-gray-text px-2 max-w-[120px] truncate">
-                    {despesa.obra?.nome || 'N/A'}
+
+                  {/* Obra */}
+                  <TableCell className="text-center px-3 hidden md:table-cell">
+                    <span className="text-[11px] text-gray-text truncate block max-w-[100px] mx-auto">
+                      {despesa.obra?.nome || <span className="text-gray-muted/60 italic">Oficina</span>}
+                    </span>
                   </TableCell>
-                  <TableCell className="text-sm text-center text-gray-text px-2 capitalize">
-                    {despesa.tipo_despesa}
+
+                  {/* Tipo */}
+                  <TableCell className="text-center px-3">
+                    <TipoBadge tipo={despesa.tipo_despesa} />
                   </TableCell>
-                  <TableCell className="text-sm text-center text-gray-text px-2 max-w-[140px] truncate">
-                    {despesa.descricao || '—'}
+
+                  {/* Descrição */}
+                  <TableCell className="text-center px-3 hidden lg:table-cell">
+                    <span className="text-[11px] text-gray-muted truncate block max-w-[140px] mx-auto">
+                      {despesa.descricao || <span className="italic opacity-50">—</span>}
+                    </span>
                   </TableCell>
-                  <TableCell className="text-sm font-bold text-navy text-center px-2">
-                    {Number(despesa.valor).toFixed(2)} €
+
+                  {/* Valor */}
+                  <TableCell className="text-center px-3">
+                    <span className="font-black text-[13px] text-navy tabular-nums">
+                      {Number(despesa.valor).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                    </span>
                   </TableCell>
-                  <TableCell className="text-sm text-center text-gray-text px-2">
-                    {formatDate(despesa.data_despesa)}
+
+                  {/* Data */}
+                  <TableCell className="text-center px-3 hidden sm:table-cell">
+                    <span className="text-[11px] font-semibold text-gray-text tabular-nums">
+                      {formatDate(despesa.data_despesa)}
+                    </span>
                   </TableCell>
-                  <TableCell className="text-center px-2">
-                    {getStatusBadge(despesa.status)}
+
+                  {/* Estado */}
+                  <TableCell className="text-center px-3">
+                    <StatusBadge status={despesa.status} />
                   </TableCell>
+
+                  {/* Ações */}
                   {showActions && (
                     <TableCell
-                      className="text-right pr-4 py-2"
+                      className="text-right pr-5 py-2"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex items-center justify-end gap-1">
-                        {/* Ver recibos — sempre visível */}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="relative h-7 w-7 text-accent-blue hover:bg-accent-blue/10 rounded-full"
-                          title={`Ver recibos (${despesa.recibos?.length ?? 0})`}
+                        {/* Ver recibos */}
+                        <button
                           onClick={() => setViewDespesa(despesa)}
+                          title={`Ver detalhes${(despesa.recibos?.length ?? 0) > 0 ? ` (${despesa.recibos!.length} recibo${despesa.recibos!.length > 1 ? 's' : ''})` : ''}`}
+                          className="relative w-7 h-7 rounded-lg bg-gray-100 text-gray-muted hover:bg-accent-blue/10 hover:text-accent-blue transition-all flex items-center justify-center"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
+                          <Eye size={13} />
                           {(despesa.recibos?.length ?? 0) > 0 && (
-                            <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-accent-blue text-[8px] text-white font-bold">
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-accent-blue text-white text-[8px] font-black flex items-center justify-center leading-none">
                               {despesa.recibos!.length}
                             </span>
                           )}
-                        </Button>
+                        </button>
 
-                        {/* Aprovar / Rejeitar — só quando pendente */}
+                        {/* Aprovar / Rejeitar */}
                         {despesa.status === 'pendente' && (
                           <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-emerald-600 hover:bg-emerald-50 rounded-full"
-                              title="Aprovar"
+                            <button
                               onClick={() => onAprovar?.(despesa.id)}
+                              title="Aprovar"
+                              className="w-7 h-7 rounded-lg bg-success/10 text-success hover:bg-success hover:text-white transition-all flex items-center justify-center"
                             >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-red-600 hover:bg-red-50 rounded-full"
-                              title="Rejeitar"
+                              <Check size={13} />
+                            </button>
+                            <button
                               onClick={() => onRejeitar?.(despesa.id)}
+                              title="Rejeitar"
+                              className="w-7 h-7 rounded-lg bg-error/10 text-error hover:bg-error hover:text-white transition-all flex items-center justify-center"
                             >
-                              <X className="h-4 w-4" />
-                            </Button>
+                              <X size={13} />
+                            </button>
                           </>
                         )}
                       </div>
@@ -180,56 +228,72 @@ export function DespesasTable({
         </Table>
       </div>
 
-      {/* Dialog recibos */}
+      {/* ── Dialog: detalhes + recibos ────────────────────────────────────── */}
       <Dialog open={!!viewDespesa} onOpenChange={(o) => !o && setViewDespesa(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-navy font-bold">Recibos da Despesa</DialogTitle>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl p-0 gap-0">
+          <DialogHeader className="px-5 py-4 border-b border-gray-border/60">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Despesa</p>
+              <DialogTitle className="text-navy font-black text-[16px] tracking-tight mt-0.5">
+                {viewDespesa?.tecnico?.full_name}
+              </DialogTitle>
+            </div>
           </DialogHeader>
+
           {viewDespesa && (
-            <div className="space-y-4">
-              <div className="rounded-lg bg-gray-50 p-3 text-sm space-y-1">
-                <p><span className="font-medium">Técnico:</span> {viewDespesa.tecnico?.full_name}</p>
-                <p><span className="font-medium">Tipo:</span> <span className="capitalize">{viewDespesa.tipo_despesa}</span></p>
-                <p><span className="font-medium">Obra:</span> {viewDespesa.obra?.nome}</p>
-                <p><span className="font-medium">Valor:</span> {Number(viewDespesa.valor).toFixed(2)} €</p>
-                <p><span className="font-medium">Data:</span> {formatDate(viewDespesa.data_despesa)}</p>
-                {viewDespesa.descricao && (
-                  <p><span className="font-medium">Descrição:</span> {viewDespesa.descricao}</p>
-                )}
+            <div className="px-5 py-4 space-y-4">
+              {/* Info */}
+              <div className="bg-gray-bg rounded-xl border border-gray-border/60 p-4 space-y-2">
+                {[
+                  { label: 'Tipo', value: viewDespesa.tipo_despesa.charAt(0).toUpperCase() + viewDespesa.tipo_despesa.slice(1) },
+                  { label: 'Obra', value: viewDespesa.obra?.nome || 'Oficina' },
+                  { label: 'Valor', value: `${Number(viewDespesa.valor).toLocaleString('pt-PT', { minimumFractionDigits: 2 })} €` },
+                  { label: 'Data', value: formatDate(viewDespesa.data_despesa) },
+                  ...(viewDespesa.descricao ? [{ label: 'Descrição', value: viewDespesa.descricao }] : []),
+                ].map((row, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-muted w-20 shrink-0 pt-0.5">{row.label}</span>
+                    <span className="text-[12px] font-semibold text-navy">{row.value}</span>
+                  </div>
+                ))}
               </div>
 
-              {(viewDespesa.recibos?.length ?? 0) === 0 ? (
-                <p className="text-center text-gray-muted py-6">Sem recibos anexados</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {viewDespesa.recibos!.map((recibo) =>
-                    recibo.tipo_ficheiro === 'imagem' ? (
-                      <a key={recibo.id} href={recibo.url} target="_blank" rel="noopener noreferrer">
-                        <img
-                          src={recibo.url}
-                          alt="Recibo"
-                          className="w-full rounded-lg object-cover aspect-square border border-gray-border hover:opacity-90 transition-opacity"
-                        />
-                      </a>
-                    ) : (
-                      <a
-                        key={recibo.id}
-                        href={recibo.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex flex-col items-center justify-center gap-2 aspect-square rounded-lg border border-gray-border bg-red-50 hover:bg-red-100 transition-colors p-3"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
-                          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                          <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                        </svg>
-                        <span className="text-xs text-red-600 font-medium text-center">Abrir PDF</span>
-                      </a>
-                    )
-                  )}
-                </div>
-              )}
+              {/* Recibos */}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted mb-2">
+                  Recibos {(viewDespesa.recibos?.length ?? 0) > 0 ? `(${viewDespesa.recibos!.length})` : ''}
+                </p>
+                {(viewDespesa.recibos?.length ?? 0) === 0 ? (
+                  <p className="text-center text-gray-muted text-sm py-6 bg-gray-bg rounded-xl border border-gray-border/60">
+                    Sem recibos anexados
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {viewDespesa.recibos!.map((recibo) =>
+                      recibo.tipo_ficheiro === 'imagem' ? (
+                        <a key={recibo.id} href={recibo.url} target="_blank" rel="noopener noreferrer" className="block group">
+                          <img
+                            src={recibo.url}
+                            alt="Recibo"
+                            className="w-full rounded-xl object-cover aspect-square border border-gray-border shadow-sm group-hover:opacity-90 transition-opacity"
+                          />
+                        </a>
+                      ) : (
+                        <a
+                          key={recibo.id}
+                          href={recibo.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex flex-col items-center justify-center gap-2 aspect-square rounded-xl border border-gray-border bg-red-50 hover:bg-red-100 transition-colors p-3"
+                        >
+                          <FileText size={28} className="text-red-500" />
+                          <span className="text-[11px] text-red-600 font-semibold text-center">Abrir PDF</span>
+                        </a>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>

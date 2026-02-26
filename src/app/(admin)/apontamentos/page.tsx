@@ -120,7 +120,7 @@ export default function ApontamentosPage() {
         <div className="flex flex-wrap items-end gap-3">
 
           <div className="flex-1 min-w-[130px] space-y-1">
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Técnico</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Funcionário</p>
             <Select
               value={filters.tecnicoId || 'all'}
               onValueChange={(v) => handleFilter('tecnicoId', v === 'all' ? '' : v)}

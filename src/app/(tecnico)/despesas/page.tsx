@@ -61,6 +61,8 @@ export default function MinhasDespesasPage() {
   const [page,        setPage]        = useState(0);
   const [filterStatus, _setFilterSt]  = useState('');
   const setFilterStatus = (v: string) => { _setFilterSt(v); setPage(0); };
+  const [search, _setSearch] = useState('');
+  const setSearch = (v: string) => { _setSearch(v); setPage(0); };
 
   const { data: despesas = [], isLoading } = useDespesas(
     profile ? { tecnicoId: profile.id } : undefined
@@ -84,10 +86,16 @@ export default function MinhasDespesasPage() {
       .map(([tipo, valor]) => ({ tipo, valor, pct: total > 0 ? Math.round((valor / total) * 100) : 0 }));
   }, [despesas]);
 
-  const filtered = useMemo(() =>
-    filterStatus ? despesas.filter(d => d.status === filterStatus) : despesas,
-    [despesas, filterStatus]
-  );
+  const filtered = useMemo(() => {
+    const byStatus = filterStatus ? despesas.filter(d => d.status === filterStatus) : despesas;
+    if (!search.trim()) return byStatus;
+    const q = search.toLowerCase();
+    return byStatus.filter(d =>
+      d.tipo_despesa.toLowerCase().includes(q) ||
+      (d.obra?.nome ?? '').toLowerCase().includes(q) ||
+      (d.descricao ?? '').toLowerCase().includes(q)
+    );
+  }, [despesas, filterStatus, search]);
   const sortedFiltered = useMemo(() =>
     [...filtered].sort((a, b) => b.data_despesa.localeCompare(a.data_despesa)),
     [filtered]
@@ -238,6 +246,28 @@ export default function MinhasDespesasPage() {
         )}
       </div>
 
+      {/* ── Pesquisa ── */}
+      <div className="lg:shrink-0 relative">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-muted pointer-events-none">
+          <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Pesquisar por tipo, obra ou descrição..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full h-10 pl-10 pr-9 rounded-xl border border-gray-border bg-white text-sm text-gray-text placeholder:text-gray-muted/50 focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy/30 transition-all"
+        />
+        {search && (
+          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-muted hover:text-gray-text transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
       {/* ── Distribuição por tipo (desktop only, compact) ── */}
       {!isLoading && tipoStats.length > 0 && (
         <div className="hidden lg:block lg:shrink-0">
@@ -310,14 +340,25 @@ export default function MinhasDespesasPage() {
                 {despesas.length === 0 ? 'Sem despesas registadas' : 'Nenhum resultado'}
               </p>
               <p className="text-xs text-gray-muted">
-                {despesas.length === 0 ? 'Clique em "Nova Despesa" para começar.' : 'Tente outro filtro.'}
+                {despesas.length === 0
+                  ? 'Clique em "Nova Despesa" para começar.'
+                  : search
+                  ? 'Tente outro termo de pesquisa.'
+                  : 'Tente outro filtro.'}
               </p>
             </div>
-            {filterStatus && (
-              <button onClick={() => setFilterStatus('')} className="text-xs text-accent-blue hover:underline font-medium">
-                Ver todas
-              </button>
-            )}
+            <div className="flex gap-2">
+              {search && (
+                <button onClick={() => setSearch('')} className="text-xs text-accent-blue hover:underline font-medium">
+                  Limpar pesquisa
+                </button>
+              )}
+              {filterStatus && (
+                <button onClick={() => setFilterStatus('')} className="text-xs text-accent-blue hover:underline font-medium">
+                  Ver todas
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">

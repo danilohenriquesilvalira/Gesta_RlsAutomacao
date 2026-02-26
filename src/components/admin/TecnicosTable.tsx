@@ -50,7 +50,7 @@ export function TecnicosTable({ tecnicos, onSelect, onEdit }: TecnicosTableProps
       <Table>
         <TableHeader>
           <TableRow className="border-gray-border hover:bg-transparent bg-gray-50/50">
-            <TableHead className="text-gray-muted pl-6 h-10">Técnico</TableHead>
+            <TableHead className="text-gray-muted pl-6 h-10">Funcionário</TableHead>
             <TableHead className="text-gray-muted text-center h-10">Obra Atual</TableHead>
             <TableHead className="text-gray-muted text-center h-10">Horas Normais</TableHead>
             <TableHead className="text-gray-muted text-center h-10">Horas Extras</TableHead>

@@ -89,10 +89,10 @@ export function EditTecnicoModal({ open, onClose, tecnico }: EditTecnicoModalPro
     if (!tecnico) return;
     try {
       await updateTecnico.mutateAsync({ id: tecnico.id, fullName: data.fullName, role: data.role });
-      toast.success('Técnico atualizado com sucesso!');
+      toast.success('Funcionário atualizado com sucesso!');
       onClose();
     } catch (error: any) {
-      toast.error(error.message || 'Erro ao atualizar técnico');
+      toast.error(error.message || 'Erro ao atualizar funcionário');
     }
   }
 
@@ -106,8 +106,8 @@ export function EditTecnicoModal({ open, onClose, tecnico }: EditTecnicoModalPro
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 shrink-0">
             <div>
-              <h2 className="text-[15px] font-semibold text-slate-900 leading-tight">Editar Técnico</h2>
-              <p className="text-[11px] text-slate-400 mt-0.5">Atualize os dados do técnico</p>
+              <h2 className="text-[15px] font-semibold text-slate-900 leading-tight">Editar Funcionário</h2>
+              <p className="text-[11px] text-slate-400 mt-0.5">Atualize os dados do funcionário</p>
             </div>
             <button
               type="button"
@@ -145,7 +145,7 @@ export function EditTecnicoModal({ open, onClose, tecnico }: EditTecnicoModalPro
                   <SelectValue placeholder="Selecione o nível de acesso" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tecnico">Técnico (Campo)</SelectItem>
+                  <SelectItem value="tecnico">Funcionário (Campo)</SelectItem>
                   <SelectItem value="admin">Administrador (Gestão)</SelectItem>
                 </SelectContent>
               </Select>

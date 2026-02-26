@@ -1,17 +1,19 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useTecnicosComHoras, useToggleTecnicoAtivo } from '@/lib/queries/tecnicos';
+import { useTecnicosComHoras, useToggleTecnicoAtivo, useDeleteFuncionario } from '@/lib/queries/tecnicos';
 import { useApontamentos, useUpdateApontamentoStatus } from '@/lib/queries/apontamentos';
 import { CreateUserModal } from '@/components/admin/CreateUserModal';
 import { EditTecnicoModal } from '@/components/admin/EditTecnicoModal';
 import { ApontamentosTable } from '@/components/admin/ApontamentosTable';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Users, Clock, UserPlus, Pencil, ClipboardList, Building2, Power,
+  Users, Clock, UserPlus, Pencil, ClipboardList, Building2, Power, Trash2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { TecnicoRow } from '@/components/admin/TecnicosTable';
 
@@ -35,12 +37,33 @@ export default function TecnicosPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingTec, setEditingTec] = useState<TecnicoRow | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: tecApts = [], isLoading: lApts } = useApontamentos(
     selectedId ? { tecnicoId: selectedId } : undefined
   );
   const updateStatus = useUpdateApontamentoStatus();
   const toggleAtivo = useToggleTecnicoAtivo();
+  const deleteFuncionario = useDeleteFuncionario();
+
+  const deletingFuncionario = tecnicos.find((t) => t.id === deletingId);
+
+  async function handleDelete() {
+    if (!deletingId) return;
+    try {
+      await deleteFuncionario.mutateAsync(deletingId);
+      toast.success('Funcionário eliminado com sucesso');
+    } catch (err: any) {
+      const msg = err?.message ?? '';
+      if (msg.includes('foreign key') || msg.includes('violates')) {
+        toast.error('Não é possível eliminar: o funcionário tem registos associados');
+      } else {
+        toast.error(err.message || 'Erro ao eliminar funcionário');
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const selectedProfile = tecnicos.find((t) => t.id === selectedId);
 
@@ -57,14 +80,14 @@ export default function TecnicosPage() {
       <div className="shrink-0 flex items-end justify-between">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-muted">Administração</p>
-          <h1 className="text-xl font-black text-navy tracking-tight">Técnicos</h1>
+          <h1 className="text-xl font-black text-navy tracking-tight">Funcionários</h1>
         </div>
         <div className="flex items-center gap-2">
           {/* Chips */}
           <div className="hidden sm:flex items-center gap-2">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-gray-border text-[11px] font-bold text-navy shadow-sm">
               <Users size={11} className="text-accent-blue shrink-0" />
-              {isLoading ? '—' : stats.total} técnicos
+              {isLoading ? '—' : stats.total} funcionários
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-gray-border text-[11px] font-bold text-navy shadow-sm">
               <Clock size={11} className="text-success shrink-0" />
@@ -77,7 +100,7 @@ export default function TecnicosPage() {
             className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-navy text-white text-[12px] font-bold hover:bg-navy-light transition-colors shadow-sm shadow-navy/20"
           >
             <UserPlus size={13} />
-            Novo Técnico
+            Novo Funcionário
           </button>
         </div>
       </div>
@@ -121,8 +144,8 @@ export default function TecnicosPage() {
             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
               <Users size={22} className="text-gray-muted/50" />
             </div>
-            <p className="text-sm font-bold text-navy">Sem técnicos registados</p>
-            <p className="text-[12px] text-gray-muted mt-1">Crie o primeiro técnico com o botão acima</p>
+            <p className="text-sm font-bold text-navy">Sem funcionários registados</p>
+            <p className="text-[12px] text-gray-muted mt-1">Crie o primeiro funcionário com o botão acima</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -228,7 +251,7 @@ export default function TecnicosPage() {
                       </button>
                       <button
                         onClick={() => setEditingTec(tec)}
-                        title="Editar técnico"
+                        title="Editar funcionário"
                         className="h-8 w-8 rounded-lg bg-gray-100 text-gray-muted hover:bg-gray-200 hover:text-navy transition-colors flex items-center justify-center shrink-0"
                       >
                         <Pencil size={13} />
@@ -237,15 +260,23 @@ export default function TecnicosPage() {
                       <button
                         onClick={() => toggleAtivo.mutate({ id: tec.id, is_active: !tec.is_active })}
                         disabled={toggleAtivo.isPending}
-                        title={isActive ? 'Desactivar técnico' : 'Activar técnico'}
+                        title={isActive ? 'Desactivar funcionário' : 'Activar funcionário'}
                         className={cn(
                           'h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-all disabled:opacity-50',
                           isActive
-                            ? 'bg-error/10 text-error hover:bg-error hover:text-white'
+                            ? 'bg-warning/10 text-warning hover:bg-warning hover:text-white'
                             : 'bg-success/10 text-success hover:bg-success hover:text-white'
                         )}
                       >
                         <Power size={13} />
+                      </button>
+                      {/* Eliminar */}
+                      <button
+                        onClick={() => setDeletingId(tec.id)}
+                        title="Eliminar funcionário"
+                        className="h-8 w-8 rounded-lg bg-error/10 text-error hover:bg-error hover:text-white transition-all flex items-center justify-center shrink-0"
+                      >
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
@@ -260,12 +291,12 @@ export default function TecnicosPage() {
       <CreateUserModal open={isAddOpen} onClose={() => setIsAddOpen(false)} />
       <EditTecnicoModal open={!!editingTec} tecnico={editingTec} onClose={() => setEditingTec(null)} />
 
-      {/* Dialog apontamentos do técnico */}
+      {/* Dialog apontamentos do funcionário */}
       <Dialog open={!!selectedId} onOpenChange={(o) => !o && setSelectedId(null)}>
         <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl border-gray-border shadow-xl">
           <DialogHeader className="px-5 py-4 border-b border-gray-border/60 shrink-0">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Técnico</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Funcionário</p>
               <DialogTitle className="text-navy font-black text-[16px] tracking-tight mt-0.5">
                 {selectedProfile?.full_name ?? '—'}
               </DialogTitle>
@@ -282,6 +313,20 @@ export default function TecnicosPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm eliminar funcionário */}
+      <ConfirmDialog
+        open={!!deletingId}
+        onOpenChange={(o) => { if (!o) setDeletingId(null); }}
+        title="Eliminar Funcionário"
+        description={`Tem a certeza que deseja eliminar "${deletingFuncionario?.full_name}"?`}
+        details="Esta ação é irreversível. Todos os dados associados a este funcionário poderão ser afectados."
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onConfirm={handleDelete}
+        isLoading={deleteFuncionario.isPending}
+        variant="danger"
+      />
     </div>
   );
 }

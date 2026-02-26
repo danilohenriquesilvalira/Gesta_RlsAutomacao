@@ -4,6 +4,7 @@ import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminBottomNav } from '@/components/admin/AdminBottomNav';
+import { RlsLogo } from '@/components/shared/RlsLogo';
 import { useEffect, useState } from 'react';
 
 export default function AdminLayout() {
@@ -44,14 +45,8 @@ export default function AdminLayout() {
       {/* Main content area */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Mobile top bar */}
-        <header className="shrink-0 z-30 flex items-center gap-2 bg-white border-b border-gray-border px-4 h-14 lg:hidden">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-navy">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          </div>
-          <span className="text-base font-bold text-navy">FieldSync</span>
+        <header className="shrink-0 z-30 flex items-center px-4 h-14 bg-white border-b border-gray-border lg:hidden">
+          <RlsLogo height={32} />
         </header>
 
         {/* Page content */}
