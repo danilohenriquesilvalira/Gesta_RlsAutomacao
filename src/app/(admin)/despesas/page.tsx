@@ -7,16 +7,22 @@ import {
   useDespesas, useUpdateDespesaStatus,
   useDepositos, useCreateDeposito,
 } from '@/lib/queries/despesas';
+import {
+  useRecibosPagamento, useCreateReciboPagamento, useDeleteReciboPagamento,
+} from '@/lib/queries/recibos-pagamento';
 import { useTecnicos } from '@/lib/queries/tecnicos';
 import { useObras } from '@/lib/queries/obras';
 import { DespesasTable } from '@/components/admin/DespesasTable';
 import { DepositoModal } from '@/components/admin/DepositoModal';
+import { ReciboPagamentoModal } from '@/components/admin/ReciboPagamentoModal';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
   Wallet, TrendingDown, ArrowUpCircle,
   X, ChevronLeft, ChevronRight, PlusCircle,
+  Receipt, FileText, ExternalLink, Trash2, Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DespesaStatus, Profile } from '@/types';
@@ -35,12 +41,18 @@ function Sk({ className = '' }: { className?: string }) {
 
 export default function AdminDespesasPage() {
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'despesas' | 'saldo'>('despesas');
+  const [activeTab, setActiveTab] = useState<'despesas' | 'saldo' | 'recibos'>('despesas');
   const [page, setPage] = useState(1);
 
   // Deposito modal
   const [depositoOpen, setDepositoOpen] = useState(false);
   const [depositoTecnicoId, setDepositoTecnicoId] = useState<string | undefined>();
+
+  // Recibos de pagamento
+  const [reciboOpen, setReciboOpen]           = useState(false);
+  const [filterReciboTecnico, setFilterReciboTecnico] = useState('');
+  const [reciboSearch, setReciboSearch]       = useState('');
+  const [deletingRecibo, setDeletingRecibo]   = useState<{ id: string; storagePath: string } | null>(null);
 
   // Filtros (tab despesas)
   const [filterTecnico, setFilterTecnico] = useState('');
@@ -59,8 +71,12 @@ export default function AdminDespesasPage() {
   const { data: tecnicos = [] } = useTecnicos();
   const { data: obras = [] } = useObras();
 
+  const { data: todosRecibos = [], isLoading: lRecibos } = useRecibosPagamento();
+
   const updateStatus = useUpdateDespesaStatus();
   const createDeposito = useCreateDeposito();
+  const createRecibo = useCreateReciboPagamento();
+  const deleteRecibo = useDeleteReciboPagamento();
 
   const tecnicosTecnico = tecnicos.filter((t) => t.role === 'tecnico') as Profile[];
   const hasFilters = !!(filterTecnico || filterObra || filterStatus);
@@ -135,6 +151,45 @@ export default function AdminDespesasPage() {
     setDepositoOpen(true);
   };
 
+  async function handleCreateRecibo(data: {
+    tecnico_id: string;
+    periodo: string;
+    valor_bruto: number;
+    valor_liquido?: number | null;
+    descricao?: string;
+    file: File;
+  }) {
+    if (!profile) return;
+    try {
+      await createRecibo.mutateAsync({ ...data, admin_id: profile.id });
+      toast.success('Recibo carregado com sucesso!');
+      setReciboOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao carregar recibo');
+    }
+  }
+
+  async function handleDeleteRecibo() {
+    if (!deletingRecibo) return;
+    try {
+      await deleteRecibo.mutateAsync(deletingRecibo);
+      toast.success('Recibo eliminado');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao eliminar recibo');
+    } finally {
+      setDeletingRecibo(null);
+    }
+  }
+
+  const filteredRecibos = todosRecibos.filter((r) => {
+    if (filterReciboTecnico && r.tecnico_id !== filterReciboTecnico) return false;
+    if (reciboSearch) {
+      const q = reciboSearch.toLowerCase();
+      return r.periodo.toLowerCase().includes(q) || (r.tecnico?.full_name ?? '').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
   const isSaldoLoading = lTodas || lDep;
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -147,13 +202,23 @@ export default function AdminDespesasPage() {
           <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-muted">Administração</p>
           <h1 className="text-xl font-black text-navy tracking-tight">Despesas</h1>
         </div>
-        <button
-          onClick={() => openDeposito()}
-          className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-navy text-white text-[12px] font-bold hover:bg-navy-light transition-colors shadow-sm shadow-navy/20"
-        >
-          <PlusCircle size={13} />
-          Registar Depósito
-        </button>
+        {activeTab === 'recibos' ? (
+          <button
+            onClick={() => setReciboOpen(true)}
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-navy text-white text-[12px] font-bold hover:bg-navy-light transition-colors shadow-sm shadow-navy/20"
+          >
+            <Receipt size={13} />
+            Carregar Recibo
+          </button>
+        ) : (
+          <button
+            onClick={() => openDeposito()}
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl bg-navy text-white text-[12px] font-bold hover:bg-navy-light transition-colors shadow-sm shadow-navy/20"
+          >
+            <PlusCircle size={13} />
+            Registar Depósito
+          </button>
+        )}
       </div>
 
       {/* ── Tab switcher ──────────────────────────────────────────────────── */}
@@ -161,6 +226,7 @@ export default function AdminDespesasPage() {
         {([
           { key: 'despesas', label: 'Despesas' },
           { key: 'saldo', label: 'Depósitos & Saldo' },
+          { key: 'recibos', label: 'Recibos de Ordenado' },
         ] as const).map((tab) => (
           <button
             key={tab.key}
@@ -477,6 +543,163 @@ export default function AdminDespesasPage() {
           )}
         </div>
       )}
+
+      {/* ══ TAB: RECIBOS DE ORDENADO ══════════════════════════════════════ */}
+      {activeTab === 'recibos' && (
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
+
+          {/* Filtros */}
+          <div className="shrink-0 bg-white rounded-xl border border-gray-border shadow-sm px-4 py-3">
+            <div className="flex flex-wrap items-end gap-3">
+
+              <div className="flex-1 min-w-[150px] space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Funcionário</p>
+                <Select value={filterReciboTecnico || 'all'} onValueChange={(v) => setFilterReciboTecnico(v === 'all' ? '' : v)}>
+                  <SelectTrigger className="h-9 text-[13px]"><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {tecnicosTecnico.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex-1 min-w-[160px] space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Pesquisar</p>
+                <div className="relative">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-muted pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Período ou funcionário..."
+                    value={reciboSearch}
+                    onChange={(e) => setReciboSearch(e.target.value)}
+                    className="w-full h-9 pl-8 pr-3 rounded-lg border border-gray-border text-[13px] text-gray-text placeholder:text-gray-muted/50 focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy/30 transition-all"
+                  />
+                </div>
+              </div>
+
+              {(filterReciboTecnico || reciboSearch) && (
+                <button
+                  onClick={() => { setFilterReciboTecnico(''); setReciboSearch(''); }}
+                  className="flex items-center gap-1.5 h-9 px-3 self-end rounded-lg border border-gray-border text-[12px] font-semibold text-gray-muted hover:text-error hover:border-error/30 hover:bg-red-50 transition-colors"
+                >
+                  <X size={12} /> Limpar
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Lista de recibos */}
+          {lRecibos ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="animate-pulse rounded-xl bg-gray-border/60 h-[100px]" />
+              ))}
+            </div>
+          ) : filteredRecibos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 text-center">
+              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                <Receipt size={22} className="text-gray-muted/50" />
+              </div>
+              <p className="text-sm font-bold text-navy">
+                {todosRecibos.length === 0 ? 'Sem recibos carregados' : 'Nenhum resultado'}
+              </p>
+              <p className="text-[12px] text-gray-muted mt-1">
+                {todosRecibos.length === 0
+                  ? 'Carregue o primeiro recibo com o botão acima'
+                  : 'Tente outros filtros de pesquisa'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {filteredRecibos.map((recibo) => {
+                const tec = recibo.tecnico;
+                return (
+                  <div key={recibo.id} className="relative bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                    <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-success" />
+                    <div className="pl-5 pr-4 pt-4 pb-3">
+
+                      {/* Header */}
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
+                          <FileText size={16} className="text-red-500" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13px] font-bold text-navy leading-tight">{recibo.periodo}</p>
+                          {tec && <p className="text-[11px] text-gray-muted mt-0.5">{tec.full_name}</p>}
+                        </div>
+                        <span className="shrink-0 px-2 py-0.5 rounded-full bg-success/10 border border-success/25 text-[9px] font-black text-success">
+                          Pago
+                        </span>
+                      </div>
+
+                      {/* Valores */}
+                      <div className="border-t border-gray-border/70 pt-2.5 pb-2 grid grid-cols-2 divide-x divide-gray-border/60 text-center">
+                        <div className="pr-2">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted mb-0.5">Bruto</p>
+                          <p className="text-[12px] font-black text-navy tabular-nums">{eur(Number(recibo.valor_bruto))}</p>
+                        </div>
+                        <div className="pl-2">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted mb-0.5">Líquido</p>
+                          <p className="text-[12px] font-black text-success tabular-nums">
+                            {recibo.valor_liquido != null ? eur(Number(recibo.valor_liquido)) : '—'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Data + acções */}
+                      <div className="border-t border-gray-border/70 mt-3 pt-2.5 flex items-center gap-2">
+                        <p className="text-[10px] text-gray-muted flex-1">
+                          {new Date(recibo.created_at).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
+                        <a
+                          href={recibo.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="h-8 px-3 rounded-lg bg-accent-blue/10 text-accent-blue hover:bg-accent-blue hover:text-white transition-all flex items-center gap-1.5 text-[12px] font-semibold"
+                        >
+                          <ExternalLink size={12} />
+                          Abrir
+                        </a>
+                        <button
+                          onClick={() => setDeletingRecibo({ id: recibo.id, storagePath: recibo.storage_path })}
+                          className="h-8 w-8 rounded-lg bg-error/10 text-error hover:bg-error hover:text-white transition-all flex items-center justify-center shrink-0"
+                          title="Eliminar recibo"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Modal Recibo de Pagamento ──────────────────────────────────── */}
+      <ReciboPagamentoModal
+        open={reciboOpen}
+        onClose={() => setReciboOpen(false)}
+        tecnicos={tecnicosTecnico}
+        onSubmit={handleCreateRecibo}
+        isSubmitting={createRecibo.isPending}
+      />
+
+      {/* Confirm eliminar recibo */}
+      <ConfirmDialog
+        open={!!deletingRecibo}
+        onOpenChange={(o) => { if (!o) setDeletingRecibo(null); }}
+        title="Eliminar Recibo"
+        description="Tem a certeza que deseja eliminar este recibo de ordenado? O ficheiro PDF será removido permanentemente."
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onConfirm={handleDeleteRecibo}
+        isLoading={deleteRecibo.isPending}
+        variant="danger"
+      />
 
       {/* ── Modal Depósito ────────────────────────────────────────────────── */}
       <DepositoModal

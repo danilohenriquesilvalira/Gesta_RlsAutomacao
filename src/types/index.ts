@@ -152,3 +152,18 @@ export interface Deposito {
   // joined
   tecnico?: Profile;
 }
+
+export interface ReciboPagamento {
+  id: string;
+  tecnico_id: string;
+  admin_id: string;
+  periodo: string;
+  valor_bruto: number;
+  valor_liquido: number | null;
+  descricao: string | null;
+  storage_path: string;
+  url: string;
+  created_at: string;
+  // joined
+  tecnico?: Profile;
+}

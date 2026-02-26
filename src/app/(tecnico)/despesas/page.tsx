@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useDespesas, useCreateDespesa, useUpdateDespesa, useDeleteDespesa } from '@/lib/queries/despesas';
+import { useRecibosPagamento } from '@/lib/queries/recibos-pagamento';
 import { useObras } from '@/lib/queries/obras';
 import { DespesaModal } from '@/components/tecnico/DespesaModal';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -15,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import type { Despesa, DespesaStatus, TipoDespesa } from '@/types';
 import type { ReciboFile } from '@/components/tecnico/ReciboUpload';
-import { Plus, ChevronLeft, ChevronRight, Receipt, CheckCircle2, AlertCircle, XCircle, Eye } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Receipt, CheckCircle2, AlertCircle, XCircle, Eye, FileText, ExternalLink } from 'lucide-react';
 
 function formatDate(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-PT', {
@@ -52,6 +53,7 @@ const TIPO_STATUS_LABEL: Record<string, string> = {
 
 export default function MinhasDespesasPage() {
   const { profile } = useAuth();
+  const [activeTab, setActiveTab] = useState<'despesas' | 'recibos'>('despesas');
   const [modalOpen, setModalOpen] = useState(false);
   const [editDespesa, setEditDespesa] = useState<Despesa | null>(null);
   const [viewDespesa, setViewDespesa] = useState<Despesa | null>(null);
@@ -66,6 +68,9 @@ export default function MinhasDespesasPage() {
 
   const { data: despesas = [], isLoading } = useDespesas(
     profile ? { tecnicoId: profile.id } : undefined
+  );
+  const { data: meusRecibos = [], isLoading: lRecibos } = useRecibosPagamento(
+    profile?.id ?? ''
   );
   const { data: obras = [] } = useObras();
   const createDespesa = useCreateDespesa();
@@ -181,15 +186,45 @@ export default function MinhasDespesasPage() {
           <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-muted">Fundo de Maneio</p>
           <h1 className="text-2xl font-black text-navy tracking-tight mt-0.5">Despesas</h1>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 h-10 px-4 bg-navy text-white rounded-xl text-sm font-semibold hover:bg-navy-light transition-colors shadow-sm shadow-navy/20 shrink-0"
-        >
-          <Plus size={15} />
-          <span className="hidden sm:inline">Nova Despesa</span>
-          <span className="sm:hidden">Nova</span>
-        </button>
+        {activeTab === 'despesas' && (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 h-10 px-4 bg-navy text-white rounded-xl text-sm font-semibold hover:bg-navy-light transition-colors shadow-sm shadow-navy/20 shrink-0"
+          >
+            <Plus size={15} />
+            <span className="hidden sm:inline">Nova Despesa</span>
+            <span className="sm:hidden">Nova</span>
+          </button>
+        )}
       </div>
+
+      {/* ── Tab switcher ── */}
+      <div className="lg:shrink-0 flex gap-1 bg-white border border-gray-border rounded-xl p-1 w-fit shadow-sm">
+        {([
+          { key: 'despesas', label: 'Despesas' },
+          { key: 'recibos', label: 'Recibos de Ordenado' },
+        ] as const).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`h-7 px-4 rounded-lg text-[12px] font-bold transition-all whitespace-nowrap ${
+              activeTab === tab.key
+                ? 'bg-navy text-white shadow-sm'
+                : 'text-gray-muted hover:text-navy'
+            }`}
+          >
+            {tab.label}
+            {tab.key === 'recibos' && meusRecibos.length > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-success/20 text-success text-[9px] font-black">
+                {meusRecibos.length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ══ TAB: DESPESAS ══ */}
+      {activeTab === 'despesas' && <>
 
       {/* ── Stats em € ── */}
       <div className="lg:shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -454,6 +489,75 @@ export default function MinhasDespesasPage() {
           Seguinte <ChevronRight size={13} />
         </button>
       </div>
+
+      </>}
+
+      {/* ══ TAB: RECIBOS DE ORDENADO ══ */}
+      {activeTab === 'recibos' && (
+        <div className="lg:flex-1 lg:overflow-y-auto lg:min-h-0">
+          {lRecibos ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="animate-pulse rounded-xl bg-gray-border/60 h-[90px]" />
+              ))}
+            </div>
+          ) : meusRecibos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+              <div className="w-14 h-14 rounded-2xl border border-gray-border bg-gray-bg flex items-center justify-center">
+                <Receipt size={22} className="text-gray-muted" strokeWidth={1.4} />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-navy">Sem recibos de ordenado</p>
+                <p className="text-xs text-gray-muted">Os seus recibos serão carregados pelo administrador</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {meusRecibos.map((recibo) => (
+                <div key={recibo.id} className="relative bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-success" />
+                  <div className="pl-5 pr-4 pt-4 pb-3 flex items-center gap-4">
+
+                    {/* Ícone PDF */}
+                    <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                      <FileText size={18} className="text-red-500" />
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-black text-navy leading-tight">{recibo.periodo}</p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-[11px] text-gray-muted">
+                          Bruto: <span className="font-semibold text-navy">{Number(recibo.valor_bruto).toLocaleString('pt-PT', { minimumFractionDigits: 2 })} €</span>
+                        </span>
+                        {recibo.valor_liquido != null && (
+                          <span className="text-[11px] text-gray-muted">
+                            Líquido: <span className="font-semibold text-success">{Number(recibo.valor_liquido).toLocaleString('pt-PT', { minimumFractionDigits: 2 })} €</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-gray-muted/70 mt-0.5">
+                        {new Date(recibo.created_at).toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      </p>
+                    </div>
+
+                    {/* Abrir PDF */}
+                    <a
+                      href={recibo.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-9 px-3 rounded-lg bg-navy/5 border border-navy/10 text-[12px] font-semibold text-navy hover:bg-navy hover:text-white hover:border-transparent transition-all flex items-center gap-1.5 shrink-0"
+                    >
+                      <ExternalLink size={13} />
+                      Abrir PDF
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal criar */}
       <DespesaModal

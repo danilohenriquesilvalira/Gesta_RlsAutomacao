@@ -3,15 +3,19 @@
 import { useState, useMemo } from 'react';
 import { useTecnicosComHoras, useToggleTecnicoAtivo, useDeleteFuncionario } from '@/lib/queries/tecnicos';
 import { useApontamentos, useUpdateApontamentoStatus } from '@/lib/queries/apontamentos';
+import { useRecibosPagamento, useCreateReciboPagamento, useDeleteReciboPagamento } from '@/lib/queries/recibos-pagamento';
+import { useAuth } from '@/hooks/useAuth';
 import { CreateUserModal } from '@/components/admin/CreateUserModal';
 import { EditTecnicoModal } from '@/components/admin/EditTecnicoModal';
 import { ApontamentosTable } from '@/components/admin/ApontamentosTable';
+import { ReciboPagamentoModal } from '@/components/admin/ReciboPagamentoModal';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
   Users, Clock, UserPlus, Pencil, ClipboardList, Building2, Power, Trash2,
+  Receipt, FileText, ExternalLink, PlusCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -33,15 +37,26 @@ function Sk({ className = '' }: { className?: string }) {
 }
 
 export default function TecnicosPage() {
+  const { profile } = useAuth();
   const { data: tecnicos = [], isLoading } = useTecnicosComHoras();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingTec, setEditingTec] = useState<TecnicoRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Recibos de pagamento
+  const [recibosId, setRecibosId]           = useState<string | null>(null);
+  const [uploadReciboOpen, setUploadReciboOpen] = useState(false);
+  const [deletingReciboId, setDeletingReciboId] = useState<{ id: string; storagePath: string } | null>(null);
+
   const { data: tecApts = [], isLoading: lApts } = useApontamentos(
     selectedId ? { tecnicoId: selectedId } : undefined
   );
+  const { data: tecnicoRecibos = [], isLoading: lRecibos } = useRecibosPagamento(
+    recibosId ?? ''
+  );
+  const createRecibo = useCreateReciboPagamento();
+  const deleteRecibo = useDeleteReciboPagamento();
   const updateStatus = useUpdateApontamentoStatus();
   const toggleAtivo = useToggleTecnicoAtivo();
   const deleteFuncionario = useDeleteFuncionario();
@@ -65,6 +80,37 @@ export default function TecnicosPage() {
     }
   }
 
+  async function handleCreateRecibo(data: {
+    tecnico_id: string;
+    periodo: string;
+    valor_bruto: number;
+    valor_liquido?: number | null;
+    descricao?: string;
+    file: File;
+  }) {
+    if (!profile) return;
+    try {
+      await createRecibo.mutateAsync({ ...data, admin_id: profile.id });
+      toast.success('Recibo carregado com sucesso!');
+      setUploadReciboOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao carregar recibo');
+    }
+  }
+
+  async function handleDeleteRecibo() {
+    if (!deletingReciboId) return;
+    try {
+      await deleteRecibo.mutateAsync(deletingReciboId);
+      toast.success('Recibo eliminado');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao eliminar recibo');
+    } finally {
+      setDeletingReciboId(null);
+    }
+  }
+
+  const recibosProfile = tecnicos.find((t) => t.id === recibosId);
   const selectedProfile = tecnicos.find((t) => t.id === selectedId);
 
   const stats = useMemo(() => {
@@ -250,6 +296,13 @@ export default function TecnicosPage() {
                         Apontamentos
                       </button>
                       <button
+                        onClick={() => setRecibosId(tec.id)}
+                        title="Recibos de ordenado"
+                        className="h-8 w-8 rounded-lg bg-gray-100 text-gray-muted hover:bg-accent-blue/10 hover:text-accent-blue transition-colors flex items-center justify-center shrink-0"
+                      >
+                        <Receipt size={13} />
+                      </button>
+                      <button
                         onClick={() => setEditingTec(tec)}
                         title="Editar funcionário"
                         className="h-8 w-8 rounded-lg bg-gray-100 text-gray-muted hover:bg-gray-200 hover:text-navy transition-colors flex items-center justify-center shrink-0"
@@ -290,6 +343,111 @@ export default function TecnicosPage() {
       {/* ── Modais ────────────────────────────────────────────────────────── */}
       <CreateUserModal open={isAddOpen} onClose={() => setIsAddOpen(false)} />
       <EditTecnicoModal open={!!editingTec} tecnico={editingTec} onClose={() => setEditingTec(null)} />
+
+      {/* Dialog recibos de ordenado */}
+      <Dialog open={!!recibosId} onOpenChange={(o) => { if (!o) { setRecibosId(null); setUploadReciboOpen(false); } }}>
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden rounded-2xl border-gray-border shadow-xl">
+          <DialogHeader className="px-5 py-4 border-b border-gray-border/60 shrink-0 flex-row items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Funcionário</p>
+              <DialogTitle className="text-navy font-black text-[15px] tracking-tight mt-0.5">
+                Recibos de Ordenado — {recibosProfile?.full_name ?? '—'}
+              </DialogTitle>
+            </div>
+            <button
+              onClick={() => setUploadReciboOpen(true)}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-navy text-white text-[12px] font-bold hover:bg-navy-light transition-colors shrink-0"
+            >
+              <PlusCircle size={12} />
+              Carregar
+            </button>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-4">
+            {lRecibos ? (
+              <div className="space-y-2.5">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="animate-pulse h-16 rounded-xl bg-gray-100" />
+                ))}
+              </div>
+            ) : tecnicoRecibos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                  <Receipt size={22} className="text-gray-muted/50" />
+                </div>
+                <p className="text-sm font-bold text-navy">Sem recibos carregados</p>
+                <p className="text-[12px] text-gray-muted mt-1">Clique em "Carregar" para adicionar o primeiro recibo</p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {tecnicoRecibos.map((recibo) => (
+                  <div key={recibo.id} className="relative bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                    <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-success" />
+                    <div className="pl-4 pr-3 py-3 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
+                        <FileText size={16} className="text-red-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-bold text-navy leading-tight">{recibo.periodo}</p>
+                        <p className="text-[11px] text-gray-muted mt-0.5">
+                          Bruto: <span className="font-semibold text-navy">{Number(recibo.valor_bruto).toLocaleString('pt-PT', { minimumFractionDigits: 2 })} €</span>
+                          {recibo.valor_liquido != null && (
+                            <> · Líquido: <span className="font-semibold text-success">{Number(recibo.valor_liquido).toLocaleString('pt-PT', { minimumFractionDigits: 2 })} €</span></>
+                          )}
+                        </p>
+                        <p className="text-[10px] text-gray-muted/70 mt-0.5">
+                          {new Date(recibo.created_at).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <a
+                          href={recibo.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="h-8 w-8 rounded-lg bg-accent-blue/10 text-accent-blue hover:bg-accent-blue hover:text-white transition-all flex items-center justify-center"
+                          title="Abrir PDF"
+                        >
+                          <ExternalLink size={13} />
+                        </a>
+                        <button
+                          onClick={() => setDeletingReciboId({ id: recibo.id, storagePath: recibo.storage_path })}
+                          className="h-8 w-8 rounded-lg bg-error/10 text-error hover:bg-error hover:text-white transition-all flex items-center justify-center"
+                          title="Eliminar recibo"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal upload recibo */}
+      <ReciboPagamentoModal
+        open={uploadReciboOpen}
+        onClose={() => setUploadReciboOpen(false)}
+        tecnicos={tecnicos.filter((t) => t.role === 'tecnico') as any}
+        defaultTecnicoId={recibosId ?? undefined}
+        onSubmit={handleCreateRecibo}
+        isSubmitting={createRecibo.isPending}
+      />
+
+      {/* Confirm eliminar recibo */}
+      <ConfirmDialog
+        open={!!deletingReciboId}
+        onOpenChange={(o) => { if (!o) setDeletingReciboId(null); }}
+        title="Eliminar Recibo"
+        description="Tem a certeza que deseja eliminar este recibo de ordenado? O ficheiro PDF será removido permanentemente."
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onConfirm={handleDeleteRecibo}
+        isLoading={deleteRecibo.isPending}
+        variant="danger"
+      />
 
       {/* Dialog apontamentos do funcionário */}
       <Dialog open={!!selectedId} onOpenChange={(o) => !o && setSelectedId(null)}>
