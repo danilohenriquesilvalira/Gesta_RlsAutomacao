@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import {
   LayoutDashboard, ClipboardList, Building2, Wallet,
   User, LogOut, ChevronLeft, ChevronRight,
@@ -11,6 +11,7 @@ import {
 interface TecnicoSidebarProps {
   currentPath: string
   userName: string
+  avatarUrl?: string | null
   onLogout: () => void
   collapsed: boolean
   onToggle: () => void
@@ -41,6 +42,7 @@ function getInitials(name: string): string {
 export function TecnicoSidebar({
   currentPath,
   userName,
+  avatarUrl,
   onLogout,
   collapsed,
   onToggle,
@@ -54,12 +56,27 @@ export function TecnicoSidebar({
       style={{ backgroundColor: '#F6F4F5' }}
     >
       {/* ── Perfil do utilizador ── */}
-      <div className={`flex flex-col items-center border-b border-gray-200 shrink-0 ${collapsed ? 'py-5 px-2' : 'pt-8 pb-6 px-4'}`}>
-        <Avatar className={`shrink-0 transition-all duration-300 ring-2 ring-white shadow-md ${collapsed ? 'h-9 w-9' : 'h-16 w-16'}`}>
-          <AvatarFallback className={`bg-navy text-white font-bold ${collapsed ? 'text-[10px]' : 'text-base'}`}>
-            {getInitials(userName)}
-          </AvatarFallback>
-        </Avatar>
+      <div className={`flex flex-col items-center border-b border-gray-200 shrink-0 relative ${collapsed ? 'py-5 px-2' : 'pt-8 pb-6 px-4'}`}>
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-navy/15 to-transparent" />
+        <div className={`shrink-0 transition-all duration-300 rounded-full
+          ${collapsed ? 'h-9 w-9' : 'h-16 w-16'}
+          ${avatarUrl
+            ? 'ring-2 ring-navy/25 ring-offset-2 ring-offset-[#F6F4F5] shadow-md overflow-hidden'
+            : 'ring-2 ring-navy/15 ring-offset-2 ring-offset-[#F6F4F5] bg-navy flex items-center justify-center shadow-sm'
+          }`}
+        >
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={userName}
+              className="w-full h-full object-cover object-center rounded-full"
+            />
+          ) : (
+            <span className={`font-bold text-white select-none ${collapsed ? 'text-[10px]' : 'text-base'}`}>
+              {getInitials(userName)}
+            </span>
+          )}
+        </div>
         {!collapsed && (
           <div className="text-center mt-4">
             <p className="text-[14px] font-bold text-navy leading-tight">{firstName}</p>
@@ -87,12 +104,15 @@ export function TecnicoSidebar({
                     key={link.path}
                     to={link.path}
                     title={collapsed ? link.label : undefined}
-                    className={`group flex items-center rounded-xl transition-all duration-150 ${collapsed ? 'justify-center h-10 w-10 mx-auto' : 'gap-3 px-3 h-11'
+                    className={`group flex items-center rounded-xl transition-all duration-150 relative overflow-hidden ${collapsed ? 'justify-center h-10 w-10 mx-auto' : 'gap-3 px-3 h-11'
                       } ${isActive
-                        ? 'bg-white text-navy shadow-sm border border-gray-200'
+                        ? 'bg-white text-navy shadow-sm shadow-navy/[0.06] border border-navy/[0.12]'
                         : 'text-gray-500 hover:bg-white/80 hover:text-gray-800'
                       }`}
                   >
+                    {isActive && !collapsed && (
+                      <span className="absolute left-0 inset-y-[7px] w-[2.5px] rounded-r-full bg-navy/40" />
+                    )}
                     <span className={`shrink-0 transition-colors ${isActive ? 'text-navy' : 'text-gray-400 group-hover:text-gray-600'}`}>
                       {link.icon}
                     </span>

@@ -48,7 +48,7 @@ export default function LoginPage() {
     if (profile?.role === 'admin') {
       navigate('/dashboard');
     } else {
-      navigate('/inicio');
+      navigate('/meu-dashboard');
     }
   }
 

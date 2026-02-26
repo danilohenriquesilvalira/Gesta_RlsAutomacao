@@ -211,7 +211,7 @@ export default function TecnicoDashboardPage() {
       </div>
     ))
   ) : currentDespesas.length === 0 ? (
-    <div className="flex flex-col items-center justify-center py-6 text-center px-6 h-[220px]">
+    <div className="flex flex-col items-center justify-center py-6 text-center px-6 h-[170px]">
       <div className="w-10 h-10 rounded-xl border border-gray-border bg-gray-bg flex items-center justify-center text-gray-muted mb-3">
         <Ticket size={16} />
       </div>
@@ -219,7 +219,7 @@ export default function TecnicoDashboardPage() {
       <p className="text-xs text-gray-muted mt-0.5">Nenhuma despesa registada.</p>
     </div>
   ) : (
-    <div className="h-[220px]">
+    <div className="h-[170px]">
       {currentDespesas.map((desp) => (
         <div key={desp.id} className="px-5 py-3 flex items-center justify-between border-b border-gray-border/50 last:border-0 hover:bg-gray-bg/50 transition-colors">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -260,7 +260,7 @@ export default function TecnicoDashboardPage() {
       </div>
     ))
   ) : currentDepositos.length === 0 ? (
-    <div className="flex flex-col items-center justify-center py-6 text-center px-6 h-[220px]">
+    <div className="flex flex-col items-center justify-center py-6 text-center px-6 h-[170px]">
       <div className="w-10 h-10 rounded-xl border border-gray-border bg-gray-bg flex items-center justify-center text-gray-muted mb-3">
         <CreditCard size={16} />
       </div>
@@ -268,7 +268,7 @@ export default function TecnicoDashboardPage() {
       <p className="text-xs text-gray-muted mt-0.5">Aguarda o primeiro depósito.</p>
     </div>
   ) : (
-    <div className="h-[220px]">
+    <div className="h-[170px]">
       {currentDepositos.map((dep) => (
         <div key={dep.id} className="px-5 py-3 flex items-center justify-between border-b border-gray-border/50 last:border-0 hover:bg-gray-bg/50 transition-colors">
           <div className="flex items-center gap-3 min-w-0">
@@ -556,7 +556,7 @@ export default function TecnicoDashboardPage() {
                   <CheckCircle2 size={13} />
                 </div>
               </div>
-              <div className="relative flex-1 min-h-[110px]">
+              <div className="relative flex-1 min-h-[150px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -666,9 +666,9 @@ export default function TecnicoDashboardPage() {
           className="lg:col-span-2 bg-white rounded-xl border overflow-hidden shadow-md"
           style={{ borderColor: '#D1D5DB' }}
         >
-          <div className="p-4">
+          <div className="p-5">
             {/* Header */}
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Progresso</p>
                 <h3 className="text-sm font-bold text-navy leading-tight">Obras em Curso</h3>
@@ -686,7 +686,7 @@ export default function TecnicoDashboardPage() {
                 <p className="text-[10px] text-gray-muted mt-0.5">Registe horas para ver o progresso</p>
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-3.5">
                 {obraStats.map((obra, i) => (
                   <div key={i}>
                     <div className="flex items-center justify-between mb-1">

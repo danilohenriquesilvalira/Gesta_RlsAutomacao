@@ -31,6 +31,7 @@ export interface Profile {
   full_name: string;
   role: Role;
   avatar_url: string | null;
+  is_active: boolean;
   created_at: string;
 }
 

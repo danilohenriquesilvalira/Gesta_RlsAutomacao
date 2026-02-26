@@ -4,7 +4,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
-  LayoutDashboard, ClipboardList, Building2, Users,
+  LayoutDashboard, ClipboardList, Users,
   CreditCard, BarChart2, LogOut, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
@@ -22,7 +22,6 @@ const navSections = [
     links: [
       { label: 'Painel', path: '/dashboard', icon: <LayoutDashboard size={16} /> },
       { label: 'Apontamentos', path: '/apontamentos', icon: <ClipboardList size={16} /> },
-      { label: 'Obras', path: '/obras', icon: <Building2 size={16} /> },
       { label: 'Técnicos', path: '/tecnicos', icon: <Users size={16} /> },
     ],
   },
@@ -55,7 +54,8 @@ export function AdminSidebar({
       style={{ backgroundColor: '#F6F4F5' }}
     >
       {/* ── Perfil do utilizador ── */}
-      <div className={`flex flex-col items-center border-b border-gray-200 shrink-0 ${collapsed ? 'py-5 px-2' : 'pt-8 pb-6 px-4'}`}>
+      <div className={`flex flex-col items-center border-b border-gray-200 shrink-0 relative ${collapsed ? 'py-5 px-2' : 'pt-8 pb-6 px-4'}`}>
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-navy/15 to-transparent" />
         <Avatar className={`shrink-0 transition-all duration-300 ring-2 ring-white shadow-md ${collapsed ? 'h-9 w-9' : 'h-16 w-16'}`}>
           <AvatarFallback className={`bg-navy text-white font-bold ${collapsed ? 'text-[10px]' : 'text-base'}`}>
             {getInitials(userName)}
@@ -88,12 +88,15 @@ export function AdminSidebar({
                     key={link.path}
                     to={link.path}
                     title={collapsed ? link.label : undefined}
-                    className={`group flex items-center rounded-xl transition-all duration-150 ${collapsed ? 'justify-center h-10 w-10 mx-auto' : 'gap-3 px-3 h-11'
+                    className={`group flex items-center rounded-xl transition-all duration-150 relative overflow-hidden ${collapsed ? 'justify-center h-10 w-10 mx-auto' : 'gap-3 px-3 h-11'
                       } ${isActive
-                        ? 'bg-white text-navy shadow-sm border border-gray-200'
+                        ? 'bg-white text-navy shadow-sm shadow-navy/[0.06] border border-navy/[0.12]'
                         : 'text-gray-500 hover:bg-white/80 hover:text-gray-800'
                       }`}
                   >
+                    {isActive && !collapsed && (
+                      <span className="absolute left-0 inset-y-[7px] w-[2.5px] rounded-r-full bg-navy/40" />
+                    )}
                     <span className={`shrink-0 transition-colors ${isActive ? 'text-navy' : 'text-gray-400 group-hover:text-gray-600'}`}>
                       {link.icon}
                     </span>

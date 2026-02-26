@@ -305,11 +305,13 @@ export function DespesaModal({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={OFICINA_VALUE}>🏭 Oficina / Sem obra associada</SelectItem>
-                  {obras.map((obra) => (
-                    <SelectItem key={obra.id} value={obra.id}>
-                      {obra.codigo} — {obra.nome}
-                    </SelectItem>
-                  ))}
+                  {obras
+                    .filter((o) => o.status === 'ativa' || o.id === initialDespesa?.obra_id)
+                    .map((obra) => (
+                      <SelectItem key={obra.id} value={obra.id}>
+                        {obra.codigo} — {obra.nome}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

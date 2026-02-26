@@ -38,6 +38,25 @@
   }
 }
 
+/* ── Mobile: previne zoom automático do iOS em inputs < 16px ── */
+@media screen and (max-width: 1023px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="time"],
+  input[type="date"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* ── Remove flash de tap no iOS/Android ── */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Custom fieldSync utilities/layers if needed */
 .sidebar-transition {
   transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1),

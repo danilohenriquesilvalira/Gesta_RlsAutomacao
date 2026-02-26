@@ -78,8 +78,15 @@ export function useAuth() {
       }
     );
 
+    // Sync profile updates across all useAuth instances (e.g. after avatar upload)
+    const handleProfileSync = (e: Event) => {
+      setProfile((e as CustomEvent<Profile>).detail);
+    };
+    window.addEventListener('auth:profile-updated', handleProfileSync);
+
     return () => {
       subscription.unsubscribe();
+      window.removeEventListener('auth:profile-updated', handleProfileSync);
     };
   }, []);
 
@@ -89,5 +96,21 @@ export function useAuth() {
     window.location.href = '/login';
   }, []);
 
-  return { user, profile, loading, signOut };
+  const refreshProfile = useCallback(async () => {
+    const currentUser = user;
+    if (!currentUser) return;
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', currentUser.id)
+      .single();
+    if (data) {
+      setProfile(data);
+      // Notifica todas as instâncias de useAuth para actualizarem o perfil
+      window.dispatchEvent(new CustomEvent('auth:profile-updated', { detail: data }));
+    }
+  }, [user]);
+
+  return { user, profile, loading, signOut, refreshProfile };
 }

@@ -69,6 +69,25 @@ export function useCreateUser() {
   });
 }
 
+export function useToggleTecnicoAtivo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tecnicos'] });
+      queryClient.invalidateQueries({ queryKey: ['tecnicos-horas'] });
+    },
+  });
+}
+
 export function useUpdateTecnico() {
   const queryClient = useQueryClient();
 

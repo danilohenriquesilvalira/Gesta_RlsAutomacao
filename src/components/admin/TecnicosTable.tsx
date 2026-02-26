@@ -16,6 +16,7 @@ export interface TecnicoRow {
   full_name: string;
   avatar_url: string | null;
   role: string;
+  is_active: boolean;
   horasNormais: number;
   horasExtras: number;
   totalHoras: number;

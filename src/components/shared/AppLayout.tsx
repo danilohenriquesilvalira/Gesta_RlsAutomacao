@@ -52,6 +52,7 @@ export default function AppLayout() {
                 <TecnicoSidebar
                     currentPath={pathname}
                     userName={profile?.full_name ?? 'Técnico'}
+                    avatarUrl={profile?.avatar_url}
                     onLogout={signOut}
                     collapsed={collapsed}
                     onToggle={() => setCollapsed((c) => !c)}
@@ -59,9 +60,9 @@ export default function AppLayout() {
             )}
 
             {/* Main content area */}
-            <div className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden">
+            <div className="flex-1 flex flex-col min-w-0 lg:h-screen lg:overflow-hidden">
                 {/* Mobile top bar */}
-                <header className="shrink-0 sticky top-0 z-30 flex items-center gap-3 bg-white border-b border-gray-border px-4 h-14 lg:hidden">
+                <header className="shrink-0 sticky top-0 z-30 flex items-center gap-3 bg-white/90 backdrop-blur-md border-b border-gray-border/60 px-4 h-14 lg:hidden">
                     <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-md">
                         <span className="text-[10px] font-black text-white tracking-wider">RLS</span>
                     </div>
@@ -72,7 +73,7 @@ export default function AppLayout() {
                 </header>
 
                 {/* Page content */}
-                <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto lg:overflow-hidden pb-16 lg:pb-6">
+                <main className="flex-1 p-3 sm:p-4 lg:p-6 lg:overflow-y-auto lg:overflow-hidden pb-20 lg:pb-6">
                     {!isAdmin && (
                         <OfflineBanner
                             isOnline={isOnline}
@@ -81,7 +82,7 @@ export default function AppLayout() {
                             onSync={sync}
                         />
                     )}
-                    <div className="h-full">
+                    <div className="lg:h-full">
                         <Outlet />
                     </div>
                 </main>

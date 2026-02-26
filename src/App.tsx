@@ -10,7 +10,6 @@ import AdminDespesasPage from './app/(admin)/despesas/page';
 import InicioPage from './app/(tecnico)/inicio/page';
 import TecnicoApontamentosPage from './app/(tecnico)/apontamentos/page';
 import TecnicoDashboardPage from './app/(tecnico)/dashboard/page';
-import FotosPage from './app/(tecnico)/fotos/page';
 import PerfilPage from './app/(tecnico)/perfil/page';
 import MinhasDespesasPage from './app/(tecnico)/despesas/page';
 import MinhasObrasPage from './app/(tecnico)/obras/page';
@@ -40,7 +39,6 @@ function App() {
                     <Route path="/inicio" element={<InicioPage />} />
                     <Route path="/meus-apontamentos" element={<TecnicoApontamentosPage />} />
                     <Route path="/meu-dashboard" element={<TecnicoDashboardPage />} />
-                    <Route path="/fotos" element={<FotosPage />} />
                     <Route path="/perfil" element={<PerfilPage />} />
                     <Route path="/minhas-despesas" element={<MinhasDespesasPage />} />
                     <Route path="/minhas-obras" element={<MinhasObrasPage />} />

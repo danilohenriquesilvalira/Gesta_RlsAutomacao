@@ -27,15 +27,6 @@ const tabs = [
     ),
   },
   {
-    label: 'Obras',
-    href: '/obras',
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" /><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" /><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" /><path d="M10 6h4" /><path d="M10 10h4" /><path d="M10 14h4" /><path d="M10 18h4" />
-      </svg>
-    ),
-  },
-  {
     label: 'Técnicos',
     href: '/tecnicos',
     icon: (
@@ -66,7 +57,7 @@ const tabs = [
 
 export function AdminBottomNav({ currentPath }: AdminBottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-border bg-white lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-border/50 bg-white/90 backdrop-blur-xl lg:hidden">
       <div className="flex h-14 items-center justify-around px-0">
         {tabs.map((tab) => {
           const isActive =
@@ -78,10 +69,13 @@ export function AdminBottomNav({ currentPath }: AdminBottomNavProps) {
               key={tab.href}
               to={tab.href}
               className={cn(
-                'flex flex-1 flex-col items-center justify-center gap-0.5 py-1',
+                'flex flex-1 flex-col items-center justify-center gap-0.5 py-1 relative',
                 isActive ? 'text-accent-blue' : 'text-gray-muted'
               )}
             >
+              {isActive && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-[2px] rounded-full bg-accent-blue" />
+              )}
               <span className="shrink-0">{tab.icon}</span>
               <span className="text-[8px] font-medium leading-none">
                 {tab.label}

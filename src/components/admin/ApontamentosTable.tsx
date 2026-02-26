@@ -3,17 +3,10 @@
 import React from 'react';
 import type { Apontamento } from '@/types';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Check, X } from 'lucide-react';
+import { Check, X, Camera } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ApontamentosTableProps {
   apontamentos: Apontamento[];
@@ -21,23 +14,16 @@ interface ApontamentosTableProps {
   onRejeitar?: (id: string) => void;
   showActions?: boolean;
   onViewFotos?: (fotos: string[]) => void;
+  isLoading?: boolean;
 }
 
 function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('pt-PT', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-PT', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
   });
 }
 
@@ -50,41 +36,39 @@ function formatTotalHoras(total: number | null): string {
   if (total === null || total === undefined) return '--:--';
   const hours = Math.floor(total);
   const minutes = Math.round((total - hours) * 60);
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  return `${String(hours).padStart(2, '0')}h${String(minutes).padStart(2, '0')}`;
 }
 
-function getTipoHoraLabel(tipo: string): string {
-  switch (tipo) {
-    case 'normal': return 'Normal';
-    case 'extra_50': return '50%';
-    case 'extra_100': return '100%';
-    default: return tipo;
-  }
+function Sk({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse rounded bg-gray-200/80 ${className}`} />;
 }
 
-function getStatusBadge(status: string) {
-  switch (status) {
-    case 'pendente':
-      return <Badge className="border-amber-200 bg-amber-50 text-amber-700 font-bold text-[10px]">Pendente</Badge>;
-    case 'aprovado':
-      return <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 font-bold text-[10px]">Aprovado</Badge>;
-    case 'rejeitado':
-      return <Badge className="border-red-200 bg-red-50 text-red-700 font-bold text-[10px]">Rejeitado</Badge>;
-    default:
-      return <Badge variant="outline" className="text-[10px]">{status}</Badge>;
-  }
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    pendente: { label: 'Pendente', cls: 'bg-warning/10 text-warning border-warning/25' },
+    aprovado: { label: 'Aprovado', cls: 'bg-success/10 text-success border-success/25' },
+    rejeitado: { label: 'Rejeitado', cls: 'bg-error/10 text-error border-error/25' },
+  };
+  const s = map[status] ?? { label: status, cls: 'bg-gray-100 text-gray-500 border-gray-200' };
+  return (
+    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold', s.cls)}>
+      {s.label}
+    </span>
+  );
 }
 
-function getTipoHoraBadge(tipo: string) {
-  const label = getTipoHoraLabel(tipo);
-  switch (tipo) {
-    case 'extra_50':
-      return <Badge className="border-blue-200 bg-blue-50 text-blue-700 font-bold text-[10px]">{label}</Badge>;
-    case 'extra_100':
-      return <Badge className="border-purple-200 bg-purple-50 text-purple-700 font-bold text-[10px]">{label}</Badge>;
-    default:
-      return <Badge variant="secondary" className="text-gray-text font-bold text-[10px]">{label}</Badge>;
-  }
+function TipoHoraBadge({ tipo }: { tipo: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    normal: { label: 'Normal', cls: 'bg-gray-100 text-gray-500 border-gray-200' },
+    extra_50: { label: 'Extra 50%', cls: 'bg-blue-50 text-accent-blue border-blue-200' },
+    extra_100: { label: 'Extra 100%', cls: 'bg-purple-50 text-purple-600 border-purple-200' },
+  };
+  const t = map[tipo] ?? { label: tipo, cls: 'bg-gray-100 text-gray-500 border-gray-200' };
+  return (
+    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold', t.cls)}>
+      {t.label}
+    </span>
+  );
 }
 
 export function ApontamentosTable({
@@ -92,91 +76,170 @@ export function ApontamentosTable({
   onAprovar,
   onRejeitar,
   showActions = true,
+  onViewFotos,
+  isLoading = false,
 }: ApontamentosTableProps) {
+  const colSpan = showActions ? 9 : 8;
+
   return (
     <div className="w-full">
       <Table>
         <TableHeader>
-          <TableRow className="border-gray-border hover:bg-transparent bg-gray-50/50">
-            <TableHead className="text-gray-muted pl-6 h-10">Técnico</TableHead>
-            <TableHead className="text-gray-muted text-center h-10">Obra</TableHead>
-            <TableHead className="text-gray-muted text-center h-10">Serviço</TableHead>
-            <TableHead className="text-gray-muted text-center h-10">Data</TableHead>
-            <TableHead className="text-gray-muted text-center h-10">Período</TableHead>
-            <TableHead className="text-gray-muted text-center h-10">Total</TableHead>
-            <TableHead className="text-gray-muted text-center h-10">Tipo</TableHead>
-            <TableHead className="text-gray-muted text-center h-10">Status</TableHead>
-            {showActions && <TableHead className="text-right pr-6 h-10">Ações</TableHead>}
+          <TableRow className="border-gray-border/60 hover:bg-transparent bg-gray-bg/40">
+            <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted pl-5 h-9">Técnico</TableHead>
+            <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9">Obra</TableHead>
+            <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9 hidden md:table-cell">Serviço</TableHead>
+            <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9">Data</TableHead>
+            <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9 hidden sm:table-cell">Período</TableHead>
+            <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9">Total</TableHead>
+            <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9 hidden lg:table-cell">Tipo</TableHead>
+            <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9">Estado</TableHead>
+            {showActions && (
+              <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-right pr-5 h-9">Ações</TableHead>
+            )}
           </TableRow>
         </TableHeader>
+
         <TableBody>
-          {apontamentos.length === 0 ? (
+          {/* Loading skeletons */}
+          {isLoading ? (
+            Array.from({ length: 8 }).map((_, i) => (
+              <TableRow key={i} className="border-gray-border/40">
+                <TableCell className="pl-5 py-3">
+                  <div className="flex items-center gap-2">
+                    <Sk className="h-7 w-7 rounded-full shrink-0" />
+                    <Sk className="h-3.5 w-24" />
+                  </div>
+                </TableCell>
+                <TableCell className="text-center px-3"><Sk className="h-3.5 w-20 mx-auto" /></TableCell>
+                <TableCell className="text-center px-3 hidden md:table-cell"><Sk className="h-3.5 w-28 mx-auto" /></TableCell>
+                <TableCell className="text-center px-3"><Sk className="h-3.5 w-20 mx-auto" /></TableCell>
+                <TableCell className="text-center px-3 hidden sm:table-cell"><Sk className="h-3.5 w-24 mx-auto" /></TableCell>
+                <TableCell className="text-center px-3"><Sk className="h-3.5 w-12 mx-auto" /></TableCell>
+                <TableCell className="text-center px-3 hidden lg:table-cell"><Sk className="h-5 w-16 mx-auto rounded-full" /></TableCell>
+                <TableCell className="text-center px-3"><Sk className="h-5 w-16 mx-auto rounded-full" /></TableCell>
+                {showActions && <TableCell className="pr-5"><Sk className="h-7 w-16 ml-auto rounded-lg" /></TableCell>}
+              </TableRow>
+            ))
+          ) : apontamentos.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={showActions ? 10 : 9} className="py-10 text-center text-gray-muted">
-                Nenhum apontamento encontrado.
+              <TableCell colSpan={colSpan} className="py-16 text-center">
+                <p className="text-sm font-semibold text-gray-muted">Nenhum apontamento encontrado</p>
+                <p className="text-[11px] text-gray-muted/70 mt-1">Tente ajustar os filtros</p>
               </TableCell>
             </TableRow>
           ) : (
-            apontamentos.map((apt) => (
-              <TableRow key={apt.id} className="border-gray-border hover:bg-gray-50/50 transition-colors">
-                <TableCell className="pl-6 py-3">
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-7 w-7">
-                      {apt.tecnico?.avatar_url ? (
-                        <AvatarImage src={apt.tecnico.avatar_url} alt={apt.tecnico.full_name} />
-                      ) : null}
-                      <AvatarFallback className="bg-accent-blue/10 text-[9px] text-accent-blue font-bold">
-                        {apt.tecnico ? getInitials(apt.tecnico.full_name) : '??'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-bold text-navy truncate max-w-[120px]">
-                      {apt.tecnico?.full_name || 'N/A'}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm text-center text-gray-text px-2 max-w-[120px] truncate">
-                  {apt.obra?.nome || 'N/A'}
-                </TableCell>
-                <TableCell className="text-sm text-center text-gray-text px-2 truncate max-w-[100px]">
-                  {apt.tipo_servico}
-                </TableCell>
-                <TableCell className="text-sm text-center text-gray-text px-2">
-                  {formatDate(apt.data_apontamento)}
-                </TableCell>
-                <TableCell className="font-mono text-[11px] text-center text-gray-text px-2">
-                  {formatTime(apt.hora_entrada)} - {formatTime(apt.hora_saida)}
-                </TableCell>
-                <TableCell className="font-mono text-sm font-bold text-navy text-center px-2">
-                  {formatTotalHoras(apt.total_horas)}
-                </TableCell>
-                <TableCell className="text-center px-2">{getTipoHoraBadge(apt.tipo_hora)}</TableCell>
-                <TableCell className="text-center px-2">{getStatusBadge(apt.status)}</TableCell>
-                {showActions && (
-                  <TableCell className="text-right pr-6 py-2">
-                    {apt.status === 'pendente' && (
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-emerald-600 hover:bg-emerald-50 rounded-full"
-                          onClick={() => onAprovar?.(apt.id)}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-red-600 hover:bg-red-50 rounded-full"
-                          onClick={() => onRejeitar?.(apt.id)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+            apontamentos.map((apt) => {
+              const fotoUrls = apt.fotos?.map((f) => f.url) ?? [];
+              const hasFotos = fotoUrls.length > 0;
+
+              return (
+                <TableRow
+                  key={apt.id}
+                  className="border-gray-border/40 hover:bg-gray-bg/50 transition-colors"
+                >
+                  {/* Técnico */}
+                  <TableCell className="pl-5 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="h-7 w-7 rounded-full bg-navy flex items-center justify-center shrink-0 overflow-hidden">
+                        {apt.tecnico?.avatar_url
+                          ? <img src={apt.tecnico.avatar_url} alt={apt.tecnico.full_name} className="w-full h-full object-cover" />
+                          : <span className="text-[9px] font-black text-white">{apt.tecnico ? getInitials(apt.tecnico.full_name) : '??'}</span>
+                        }
                       </div>
-                    )}
+                      <span className="text-[12px] font-bold text-navy truncate max-w-[110px]">
+                        {apt.tecnico?.full_name?.split(' ')[0] || 'N/A'}
+                      </span>
+                    </div>
                   </TableCell>
-                )}
-              </TableRow>
-            ))
+
+                  {/* Obra */}
+                  <TableCell className="text-center px-3">
+                    <span className="text-[11px] text-gray-text truncate block max-w-[100px] mx-auto">
+                      {apt.obra?.nome || <span className="text-gray-muted/60 italic">Oficina</span>}
+                    </span>
+                  </TableCell>
+
+                  {/* Serviço */}
+                  <TableCell className="text-center px-3 hidden md:table-cell">
+                    <span className="text-[11px] text-gray-text truncate block max-w-[120px] mx-auto">
+                      {apt.tipo_servico}
+                    </span>
+                  </TableCell>
+
+                  {/* Data */}
+                  <TableCell className="text-center px-3">
+                    <span className="text-[11px] font-semibold text-gray-text tabular-nums">
+                      {formatDate(apt.data_apontamento)}
+                    </span>
+                  </TableCell>
+
+                  {/* Período */}
+                  <TableCell className="text-center px-3 hidden sm:table-cell">
+                    <span className="font-mono text-[10px] text-gray-muted">
+                      {formatTime(apt.hora_entrada)} — {formatTime(apt.hora_saida)}
+                    </span>
+                  </TableCell>
+
+                  {/* Total */}
+                  <TableCell className="text-center px-3">
+                    <span className="font-mono text-[13px] font-black text-navy tabular-nums">
+                      {formatTotalHoras(apt.total_horas)}
+                    </span>
+                  </TableCell>
+
+                  {/* Tipo hora */}
+                  <TableCell className="text-center px-3 hidden lg:table-cell">
+                    <TipoHoraBadge tipo={apt.tipo_hora} />
+                  </TableCell>
+
+                  {/* Estado */}
+                  <TableCell className="text-center px-3">
+                    <StatusBadge status={apt.status} />
+                  </TableCell>
+
+                  {/* Ações */}
+                  {showActions && (
+                    <TableCell className="text-right pr-5 py-2">
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Botão fotos */}
+                        {hasFotos && (
+                          <button
+                            onClick={() => onViewFotos?.(fotoUrls)}
+                            title={`Ver ${fotoUrls.length} foto${fotoUrls.length > 1 ? 's' : ''}`}
+                            className="relative w-7 h-7 rounded-lg bg-gray-100 text-gray-muted hover:bg-accent-blue/10 hover:text-accent-blue transition-all flex items-center justify-center"
+                          >
+                            <Camera size={13} />
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-accent-blue text-white text-[8px] font-black flex items-center justify-center leading-none">
+                              {fotoUrls.length}
+                            </span>
+                          </button>
+                        )}
+                        {/* Aprovar / Rejeitar (só se pendente) */}
+                        {apt.status === 'pendente' && (
+                          <>
+                            <button
+                              onClick={() => onAprovar?.(apt.id)}
+                              title="Aprovar"
+                              className="w-7 h-7 rounded-lg bg-success/10 text-success hover:bg-success hover:text-white transition-all flex items-center justify-center"
+                            >
+                              <Check size={13} />
+                            </button>
+                            <button
+                              onClick={() => onRejeitar?.(apt.id)}
+                              title="Rejeitar"
+                              className="w-7 h-7 rounded-lg bg-error/10 text-error hover:bg-error hover:text-white transition-all flex items-center justify-center"
+                            >
+                              <X size={13} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
+                </TableRow>
+              );
+            })
           )}
         </TableBody>
       </Table>

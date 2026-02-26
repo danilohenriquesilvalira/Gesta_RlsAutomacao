@@ -38,7 +38,7 @@ const tabs = [
 
 export function BottomNav({ currentPath }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-border bg-white lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-border/50 bg-white/90 backdrop-blur-xl lg:hidden">
       <div className="flex h-14 items-center justify-around">
         {tabs.map((tab) => {
           const isActive =
@@ -49,8 +49,11 @@ export function BottomNav({ currentPath }: BottomNavProps) {
             <Link
               key={tab.href}
               to={tab.href}
-              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-1"
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 py-1 relative"
             >
+              {isActive && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-[2px] rounded-full bg-accent-blue" />
+              )}
               {tab.icon(isActive)}
               <span className={cn('text-[8px] font-medium leading-none', isActive ? 'text-accent-blue' : 'text-gray-muted')}>
                 {tab.label}
