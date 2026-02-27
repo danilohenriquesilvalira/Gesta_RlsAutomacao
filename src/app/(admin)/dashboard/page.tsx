@@ -37,6 +37,8 @@ const TIPO_COLORS: Record<string, string> = {
   Combustível: '#eab308', Material: '#14b8a6', Outro: '#94a3b8',
 };
 
+const MONTHLY_TARGET = 176; // 8h × 22 dias úteis
+
 // ── Tooltips ───────────────────────────────────────────────────────────────────
 
 function TooltipHoras({ active, payload, label }: any) {
@@ -102,10 +104,16 @@ export default function AdminDashboardPage() {
 
   const isLoading = lApt || lTec || lDesp || lDep || lObras;
 
+  // ── Ciclo atual ─────────────────────────────────────────────────────────────
+  const now = new Date();
+  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const nomeMes = now.toLocaleDateString('pt-PT', { month: 'long' });
+  const cicloLabel = `Ciclo: ${nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1)}/${now.getFullYear()}`;
+
   // ── KPIs ──────────────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
     const horasAprovadas = apontamentos
-      .filter((a) => a.status === 'aprovado')
+      .filter((a) => a.status === 'aprovado' && a.data_apontamento.startsWith(currentMonthStr))
       .reduce((s, a) => s + (a.total_horas ?? 0), 0);
     const obrasAtivas = obras.filter((o) => o.status === 'ativa').length;
     const custoAprovado = despesas
@@ -116,7 +124,7 @@ export default function AdminDashboardPage() {
     const pendentesApt = apontamentos.filter((a) => a.status === 'pendente').length;
     const pendentesDsp = despesas.filter((d) => d.status === 'pendente').length;
     return { horasAprovadas, obrasAtivas, custoAprovado, totalDepositado, saldoGlobal, pendentesApt, pendentesDsp };
-  }, [apontamentos, obras, despesas, depositos]);
+  }, [apontamentos, obras, despesas, depositos, currentMonthStr]);
 
   // ── Horas semanais (6 semanas) ────────────────────────────────────────────
   const weeklyData = useMemo(() => {
@@ -154,24 +162,28 @@ export default function AdminDashboardPage() {
       .sort((a, b) => b.value - a.value);
   }, [despesas]);
 
-  // ── Performance por técnico (cruzamento: apontamentos + despesas + depósitos) ──
+  // ── Performance por técnico ────────────────────────────────────────────────
   const performanceTecnicos = useMemo(() => {
     return tecnicos
       .map((t) => {
-        const apts = apontamentos.filter((a) => a.tecnico_id === t.id && a.status === 'aprovado');
-        const horasNormal = apts.filter((a) => a.tipo_hora === 'normal').reduce((s, a) => s + (a.total_horas ?? 0), 0);
-        const horasExtra = apts.filter((a) => a.tipo_hora !== 'normal').reduce((s, a) => s + (a.total_horas ?? 0), 0);
+        const aptsAll = apontamentos.filter((a) => a.tecnico_id === t.id && a.status === 'aprovado');
+        const aptsMes = aptsAll.filter((a) => a.data_apontamento.startsWith(currentMonthStr));
+        const horasNormal = aptsAll.filter((a) => a.tipo_hora === 'normal').reduce((s, a) => s + (a.total_horas ?? 0), 0);
+        const horasExtra = aptsAll.filter((a) => a.tipo_hora !== 'normal').reduce((s, a) => s + (a.total_horas ?? 0), 0);
         const totalHoras = horasNormal + horasExtra;
+        const horasMes = aptsMes.reduce((s, a) => s + (a.total_horas ?? 0), 0);
+        const horasExtraMes = aptsMes.filter((a) => a.tipo_hora !== 'normal').reduce((s, a) => s + (a.total_horas ?? 0), 0);
         const custoDespesas = despesas
           .filter((d) => d.tecnico_id === t.id && d.status === 'aprovada')
           .reduce((s, d) => s + Number(d.valor), 0);
         const totalDep = depositos.filter((d) => d.tecnico_id === t.id).reduce((s, d) => s + Number(d.valor), 0);
         const saldo = totalDep - custoDespesas;
         const ratioExtra = totalHoras > 0 ? (horasExtra / totalHoras) * 100 : 0;
-        return { ...t, totalHoras, horasNormal, horasExtra, ratioExtra, custoDespesas, totalDep, saldo };
+        const isSaldoCritico = saldo < 50;
+        return { ...t, totalHoras, horasNormal, horasExtra, ratioExtra, custoDespesas, totalDep, saldo, isSaldoCritico, horasMes, horasExtraMes };
       })
       .sort((a, b) => b.totalHoras - a.totalHoras);
-  }, [tecnicos, apontamentos, despesas, depositos]);
+  }, [tecnicos, apontamentos, despesas, depositos, currentMonthStr]);
 
   // ── Fluxo de caixa por técnico (bar chart) ────────────────────────────────
   const fluxoCaixaData = useMemo(() =>
@@ -186,7 +198,7 @@ export default function AdminDashboardPage() {
     [performanceTecnicos]
   );
 
-  // ── Obras: custo vs progresso (cruzamento chave) ──────────────────────────
+  // ── Obras: custo vs progresso + orçamento ────────────────────────────────
   const obrasInsight = useMemo(() =>
     obras
       .filter((o) => o.status === 'ativa' && !!o.created_by)
@@ -199,7 +211,10 @@ export default function AdminDashboardPage() {
           .reduce((s, a) => s + (a.total_horas ?? 0), 0);
         const prog = o.progresso ?? 0;
         const risco = custo > 0 && prog < 40 ? 'alto' : custo > 0 && prog < 70 ? 'medio' : 'ok';
-        return { id: o.id, nome: o.nome, codigo: o.codigo, cliente: o.cliente, prog, custo, horas, risco, localizacao: o.localizacao, executante: o.executante };
+        const orcamento = o.orcamento ?? null;
+        const budgetPct = orcamento && orcamento > 0 ? Math.min((custo / orcamento) * 100, 100) : null;
+        const budgetColor = budgetPct === null ? null : budgetPct > 90 ? '#ef4444' : budgetPct > 70 ? '#f59e0b' : '#10b981';
+        return { id: o.id, nome: o.nome, codigo: o.codigo, cliente: o.cliente, prog, custo, horas, risco, localizacao: o.localizacao, executante: o.executante, orcamento, budgetPct, budgetColor };
       })
       .sort((a, b) => b.custo - a.custo)
       .slice(0, 6),
@@ -228,8 +243,19 @@ export default function AdminDashboardPage() {
         subtitulo: `${d.tipo_despesa.charAt(0).toUpperCase() + d.tipo_despesa.slice(1)} · ${eur(Number(d.valor))}`,
         data: d.data_despesa,
       }));
-    return [...apts, ...desps].sort((a, b) => b.data.localeCompare(a.data));
-  }, [apontamentos, despesas]);
+    return [...apts, ...desps]
+      .map(item => ({ ...item, isOld: !item.data.startsWith(currentMonthStr) }))
+      .sort((a, b) => {
+        if (a.isOld !== b.isOld) return a.isOld ? -1 : 1;
+        return b.data.localeCompare(a.data);
+      });
+  }, [apontamentos, despesas, currentMonthStr]);
+
+  // ── Alertas críticos ───────────────────────────────────────────────────────
+  const tecnicosCriticos = performanceTecnicos.filter(t => t.isSaldoCritico).length;
+  const obrasAcimaBudget = obrasInsight.filter(o => o.budgetPct !== null && o.budgetPct > 90).length;
+  const pendentesAntigos = pendentesCombo.filter(p => p.isOld).length;
+  const hasCriticalAlerts = tecnicosCriticos > 0 || obrasAcimaBudget > 0 || pendentesAntigos > 0;
 
   const today = new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -247,10 +273,24 @@ export default function AdminDashboardPage() {
         <p className="text-[11px] text-gray-muted font-medium capitalize hidden sm:block">{today}</p>
       </div>
 
+      {/* ── Banner de Alerta Crítico ───────────────────────────────────────── */}
+      {hasCriticalAlerts && (
+        <div className="shrink-0 flex items-center gap-3 bg-error/8 border border-error/25 rounded-xl px-4 py-2.5">
+          <AlertCircle size={14} className="text-error shrink-0" />
+          <p className="text-[11px] font-semibold text-error flex-1">
+            Atenção: {[
+              tecnicosCriticos > 0 && `${tecnicosCriticos} técnico(s) em saldo crítico`,
+              obrasAcimaBudget > 0 && `${obrasAcimaBudget} obra(s) acima do orçamento`,
+              pendentesAntigos > 0 && `${pendentesAntigos} aprovação(ões) em atraso`,
+            ].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+      )}
+
       {/* ── KPIs ──────────────────────────────────────────────────────────── */}
       <div className="shrink-0 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
         {[
-          { label: 'Horas Aprovadas', value: isLoading ? '—' : fmtH(kpis.horasAprovadas), icon: <Clock size={13} />, accent: 'bg-accent-blue', iconBg: 'bg-blue-50 text-accent-blue' },
+          { label: 'Horas Aprovadas', value: isLoading ? '—' : fmtH(kpis.horasAprovadas), icon: <Clock size={13} />, accent: 'bg-accent-blue', iconBg: 'bg-blue-50 text-accent-blue', sub: cicloLabel },
           { label: 'Funcionários', value: isLoading ? '—' : tecnicos.length, icon: <Users size={13} />, accent: 'bg-success', iconBg: 'bg-emerald-50 text-success' },
           { label: 'Obras Ativas', value: isLoading ? '—' : kpis.obrasAtivas, icon: <Building2 size={13} />, accent: 'bg-purple-500', iconBg: 'bg-purple-50 text-purple-500' },
           { label: 'Custo Aprovado', value: isLoading ? '—' : eur(kpis.custoAprovado), icon: <Wallet size={13} />, accent: 'bg-error', iconBg: 'bg-red-50 text-error', small: true },
@@ -265,6 +305,7 @@ export default function AdminDashboardPage() {
                 <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${k.iconBg}`}>{k.icon}</div>
               </div>
               <p className={`font-black text-navy leading-none ${(k as any).small ? 'text-[13px]' : 'text-[18px]'}`}>{k.value}</p>
+              {(k as any).sub && <p className="text-[8px] text-gray-muted mt-0.5">{(k as any).sub}</p>}
             </div>
           </div>
         ))}
@@ -372,7 +413,7 @@ export default function AdminDashboardPage() {
               <div className="flex-1 border-t border-gray-border/60" />
             </div>
 
-            {/* ── Secção inferior: Obras progresso ── */}
+            {/* ── Secção inferior: Obras progresso + orçamento ── */}
             <div className="flex-1 overflow-y-auto px-4 py-2.5 space-y-2.5">
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => <Sk key={i} className="h-8 w-full" />)
@@ -397,7 +438,7 @@ export default function AdminDashboardPage() {
                           </span>
                         )}
                       </div>
-                      {/* Meio: Barra de progresso mais espessa */}
+                      {/* Barra de progresso */}
                       <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
                         <div className="h-full rounded-full transition-all duration-700" style={{ width: `${o.prog}%`, backgroundColor: progColor }} />
                       </div>
@@ -409,6 +450,18 @@ export default function AdminDashboardPage() {
                         </div>
                         <span className={`text-[9px] font-black shrink-0 ${riscoColor}`}>{o.prog}%</span>
                       </div>
+                      {/* Barra de orçamento */}
+                      {o.orcamento && o.budgetPct !== null && (
+                        <div className="space-y-0.5 mt-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[8px] text-gray-muted">Orçamento</span>
+                            <span className="text-[8px] font-black" style={{ color: o.budgetColor ?? undefined }}>{o.budgetPct?.toFixed(0)}%</span>
+                          </div>
+                          <div className="h-1 w-full rounded-full bg-gray-100">
+                            <div className="h-full rounded-full" style={{ width: `${o.budgetPct}%`, backgroundColor: o.budgetColor ?? undefined }} />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -420,67 +473,85 @@ export default function AdminDashboardPage() {
         {/* ── Linha 2: Dados — flex-1 ──────────────────────────────────────── */}
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-5 gap-3">
 
-          {/* Performance da Equipa — col-span-3 */}
+          {/* Performance da Equipa — col-span-3 (grid de cards compactos) */}
           <div className="lg:col-span-3 bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden flex flex-col">
             <div className="px-4 py-2.5 border-b border-gray-border/60 shrink-0">
-              <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Equipa</p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Equipa · {cicloLabel}</p>
               <h3 className="text-[13px] font-bold text-navy">Resumo da Equipa</h3>
             </div>
-            <div className="flex-1 overflow-auto">
-              <table className="w-full text-[11px]">
-                <thead className="sticky top-0 z-10">
-                  <tr className="border-b border-gray-border/50 bg-gray-bg/80">
-                    <th className="text-left px-4 py-2 font-black text-[9px] uppercase tracking-widest text-gray-muted">Funcionário</th>
-                    <th className="text-right px-3 py-2 font-black text-[9px] uppercase tracking-widest text-gray-muted">Horas</th>
-                    <th className="text-right px-3 py-2 font-black text-[9px] uppercase tracking-widest text-gray-muted hidden sm:table-cell">Extra %</th>
-                    <th className="text-right px-3 py-2 font-black text-[9px] uppercase tracking-widest text-gray-muted">Despesas</th>
-                    <th className="text-right px-4 py-2 font-black text-[9px] uppercase tracking-widest text-gray-muted">Saldo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    Array.from({ length: 6 }).map((_, i) => (
-                      <tr key={i} className="border-b border-gray-border/30">
-                        <td className="px-4 py-3"><Sk className="h-4 w-28" /></td>
-                        <td className="px-3 py-3"><Sk className="h-4 w-12 ml-auto" /></td>
-                        <td className="px-3 py-3 hidden sm:table-cell"><Sk className="h-4 w-10 ml-auto" /></td>
-                        <td className="px-3 py-3"><Sk className="h-4 w-16 ml-auto" /></td>
-                        <td className="px-4 py-3"><Sk className="h-4 w-16 ml-auto" /></td>
-                      </tr>
-                    ))
-                  ) : performanceTecnicos.length === 0 ? (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-xs text-gray-muted">Sem dados de performance ainda</td></tr>
-                  ) : (
-                    performanceTecnicos.map((t, i) => (
-                      <tr key={t.id} className="border-b border-gray-border/30 last:border-0 hover:bg-gray-bg/50 transition-colors">
-                        <td className="px-4 py-2.5">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-navy flex items-center justify-center shrink-0 overflow-hidden">
-                              {t.avatar_url
-                                ? <img src={t.avatar_url} alt={t.full_name} className="w-full h-full object-cover" />
-                                : <span className="text-[8px] font-black text-white">{getInitials(t.full_name)}</span>
-                              }
-                            </div>
-                            <span className="font-semibold text-navy truncate">{t.full_name.split(' ')[0]}</span>
+            <div className="flex-1 overflow-auto p-3">
+              {isLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {Array.from({ length: 6 }).map((_, i) => <Sk key={i} className="h-28" />)}
+                </div>
+              ) : performanceTecnicos.length === 0 ? (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-xs text-gray-muted">Sem dados de performance ainda</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {performanceTecnicos.map((t) => {
+                    const carga = Math.min((t.horasMes / MONTHLY_TARGET) * 100, 100);
+                    const cargaColor = carga > 90 ? '#ef4444' : carga > 70 ? '#f59e0b' : '#10b981';
+                    const extraPct = t.horasMes > 0 ? Math.round((t.horasExtraMes / t.horasMes) * 100) : 0;
+                    return (
+                      <div
+                        key={t.id}
+                        className={cn(
+                          'rounded-xl border p-3 space-y-2',
+                          t.isSaldoCritico ? 'border-error/50 bg-red-50/40' : 'border-gray-border bg-white'
+                        )}
+                      >
+                        {/* Topo: Avatar + Nome + Badge crítico */}
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-navy flex items-center justify-center shrink-0 overflow-hidden">
+                            {t.avatar_url
+                              ? <img src={t.avatar_url} alt={t.full_name} className="w-full h-full object-cover" />
+                              : <span className="text-[9px] font-black text-white">{getInitials(t.full_name)}</span>
+                            }
                           </div>
-                        </td>
-                        <td className="px-3 py-2.5 text-right font-bold text-navy">{fmtH(t.totalHoras)}</td>
-                        <td className="px-3 py-2.5 text-right hidden sm:table-cell">
-                          <span className={cn('font-bold text-[11px]', t.ratioExtra > 30 ? 'text-warning' : 'text-gray-muted')}>
-                            {t.ratioExtra.toFixed(0)}%
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5 text-right font-bold text-error">{eur(t.custoDespesas)}</td>
-                        <td className="px-4 py-2.5 text-right">
-                          <span className={cn('font-black', t.saldo >= 0 ? 'text-success' : 'text-error')}>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-bold text-navy truncate leading-tight">{t.full_name.split(' ')[0]}</p>
+                            {t.isSaldoCritico && (
+                              <span className="px-1.5 py-0.5 rounded-md bg-error/10 text-error text-[8px] font-black">Saldo Crítico</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Horas do mês + % extra */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] text-gray-muted">Horas este mês</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-black text-navy">{fmtH(t.horasMes)}</span>
+                            {extraPct > 0 && (
+                              <span className="text-[8px] font-bold text-warning">{extraPct}% ext.</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Barra de carga mensal */}
+                        <div className="space-y-0.5">
+                          <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${carga}%`, backgroundColor: cargaColor }}
+                            />
+                          </div>
+                          <span className="text-[8px] text-gray-muted">{carga.toFixed(0)}% de {MONTHLY_TARGET}h</span>
+                        </div>
+
+                        {/* Despesas + Saldo */}
+                        <div className="flex items-center justify-between pt-0.5 border-t border-gray-border/50">
+                          <span className="text-[9px] text-gray-muted">Desp. <span className="font-bold text-error">{eur(t.custoDespesas)}</span></span>
+                          <span className={cn('text-[9px] font-black', t.saldo >= 0 ? 'text-success' : 'text-error')}>
                             {t.saldo >= 0 ? '+' : ''}{eur(t.saldo)}
                           </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
@@ -588,13 +659,18 @@ export default function AdminDashboardPage() {
                   {/* Barra lateral colorida por tipo */}
                   <div className={cn('w-[3px] self-stretch rounded-full shrink-0 min-h-[36px]', isApt ? 'bg-accent-blue' : 'bg-amber-400')} />
 
-                  {/* Badge de tipo com ícone */}
-                  <div className={cn(
-                    'flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-bold shrink-0 leading-none',
-                    isApt ? 'bg-blue-50 text-accent-blue' : 'bg-amber-50 text-amber-600'
-                  )}>
-                    {isApt ? <Timer size={9} /> : <Receipt size={9} />}
-                    <span className="hidden sm:inline">{isApt ? 'Apontamento' : 'Despesa'}</span>
+                  {/* Badges: tipo + atraso */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <div className={cn(
+                      'flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-bold leading-none',
+                      isApt ? 'bg-blue-50 text-accent-blue' : 'bg-amber-50 text-amber-600'
+                    )}>
+                      {isApt ? <Timer size={9} /> : <Receipt size={9} />}
+                      <span className="hidden sm:inline">{isApt ? 'Apontamento' : 'Despesa'}</span>
+                    </div>
+                    {item.isOld && (
+                      <span className="px-1.5 rounded-md bg-error/10 text-error text-[8px] font-black">Atrasado</span>
+                    )}
                   </div>
 
                   {/* Conteúdo */}
@@ -637,6 +713,14 @@ export default function AdminDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* ── Floating Badge de Pendentes ───────────────────────────────────── */}
+      {(kpis.pendentesApt + kpis.pendentesDsp) > 0 && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-warning text-white px-3 py-2 rounded-full shadow-lg shadow-warning/30 text-[11px] font-black">
+          <AlertCircle size={13} />
+          {kpis.pendentesApt + kpis.pendentesDsp} pendente{(kpis.pendentesApt + kpis.pendentesDsp) > 1 ? 's' : ''}
+        </div>
+      )}
     </div>
   );
 }

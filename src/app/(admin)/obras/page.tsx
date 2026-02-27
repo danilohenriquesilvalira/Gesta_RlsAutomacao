@@ -60,13 +60,14 @@ export default function ObrasPage() {
     nome: '',
     cliente: '',
     prazo: '',
+    orcamento: '',
     status: 'ativa' as ObraStatus,
     progresso: 0,
   });
 
   function openCreate() {
     setEditingObra(null);
-    setForm({ codigo: '', nome: '', cliente: '', prazo: '', status: 'ativa', progresso: 0 });
+    setForm({ codigo: '', nome: '', cliente: '', prazo: '', orcamento: '', status: 'ativa', progresso: 0 });
     setModalOpen(true);
   }
 
@@ -77,6 +78,7 @@ export default function ObrasPage() {
       nome: obra.nome,
       cliente: obra.cliente,
       prazo: obra.prazo ?? '',
+      orcamento: obra.orcamento != null ? String(obra.orcamento) : '',
       status: obra.status,
       progresso: obra.progresso,
     });
@@ -84,6 +86,7 @@ export default function ObrasPage() {
   }
 
   async function handleSave() {
+    const orcamentoVal = form.orcamento ? parseFloat(form.orcamento) : null;
     if (editingObra) {
       await updateObra.mutateAsync({
         id: editingObra.id,
@@ -91,6 +94,7 @@ export default function ObrasPage() {
         nome: form.nome,
         cliente: form.cliente,
         prazo: form.prazo || null,
+        orcamento: orcamentoVal,
         status: form.status,
         progresso: form.progresso,
       });
@@ -100,6 +104,7 @@ export default function ObrasPage() {
         nome: form.nome,
         cliente: form.cliente,
         prazo: form.prazo || undefined,
+        orcamento: orcamentoVal,
         created_by: profile?.id,
       });
     }
@@ -177,6 +182,19 @@ export default function ObrasPage() {
                 value={form.nome}
                 onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))}
                 placeholder="Subestação Manaus"
+                className={sInput}
+              />
+            </div>
+
+            <div>
+              <Lbl>Orçamento (€)</Lbl>
+              <Input
+                type="number"
+                value={form.orcamento}
+                onChange={(e) => setForm((p) => ({ ...p, orcamento: e.target.value }))}
+                placeholder="0.00"
+                min={0}
+                step={0.01}
                 className={sInput}
               />
             </div>

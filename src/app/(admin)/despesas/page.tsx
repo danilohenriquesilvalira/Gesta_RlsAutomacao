@@ -20,6 +20,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Wallet, TrendingDown, ArrowUpCircle,
   X, ChevronLeft, ChevronRight, PlusCircle,
   Receipt, FileText, ExternalLink, Trash2, Search,
@@ -47,6 +50,12 @@ export default function AdminDespesasPage() {
   // Deposito modal
   const [depositoOpen, setDepositoOpen] = useState(false);
   const [depositoTecnicoId, setDepositoTecnicoId] = useState<string | undefined>();
+
+  // Dialog de rejeição com nota
+  const [rejectDespesaDialog, setRejectDespesaDialog] = useState<{ open: boolean; id: string; nota: string }>({
+    open: false, id: '', nota: '',
+  });
+  const [rejectDespesaPending, setRejectDespesaPending] = useState(false);
 
   // Recibos de pagamento
   const [reciboOpen, setReciboOpen]           = useState(false);
@@ -129,9 +138,24 @@ export default function AdminDespesasPage() {
     try { await updateStatus.mutateAsync({ id, status: 'aprovada' }); toast.success('Despesa aprovada'); }
     catch { toast.error('Erro ao aprovar despesa'); }
   }
-  async function handleRejeitar(id: string) {
-    try { await updateStatus.mutateAsync({ id, status: 'rejeitada' }); toast.success('Despesa rejeitada'); }
-    catch { toast.error('Erro ao rejeitar despesa'); }
+  function handleRejeitar(id: string) {
+    setRejectDespesaDialog({ open: true, id, nota: '' });
+  }
+  async function handleConfirmRejeitarDespesa() {
+    setRejectDespesaPending(true);
+    try {
+      await updateStatus.mutateAsync({
+        id: rejectDespesaDialog.id,
+        status: 'rejeitada',
+        nota_rejeicao: rejectDespesaDialog.nota.trim() || null,
+      });
+      toast.success('Despesa rejeitada');
+      setRejectDespesaDialog({ open: false, id: '', nota: '' });
+    } catch {
+      toast.error('Erro ao rejeitar despesa');
+    } finally {
+      setRejectDespesaPending(false);
+    }
   }
   async function handleCreateDeposito(data: {
     tecnico_id: string; valor: number; data_deposito: string; descricao?: string;
@@ -678,6 +702,53 @@ export default function AdminDespesasPage() {
           )}
         </div>
       )}
+
+      {/* ── Dialog: Rejeitar despesa com nota ─────────────────────────── */}
+      <Dialog
+        open={rejectDespesaDialog.open}
+        onOpenChange={(o) => !o && setRejectDespesaDialog({ open: false, id: '', nota: '' })}
+      >
+        <DialogContent className="max-w-md rounded-2xl p-0 gap-0">
+          <DialogHeader className="px-5 py-4 border-b border-gray-border/60">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Confirmação</p>
+              <DialogTitle className="text-navy font-black text-[16px] tracking-tight mt-0.5">
+                Rejeitar Despesa
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="px-5 py-4 space-y-3">
+            <p className="text-[12px] text-gray-muted">
+              Indique o motivo da rejeição (opcional). O técnico poderá ver esta nota.
+            </p>
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Motivo / Nota</p>
+              <textarea
+                value={rejectDespesaDialog.nota}
+                onChange={(e) => setRejectDespesaDialog((p) => ({ ...p, nota: e.target.value }))}
+                placeholder="Ex: Recibo ilegível, valor incorrecto..."
+                rows={3}
+                className="w-full px-3 py-2 rounded-xl border border-gray-border bg-gray-bg text-[13px] text-gray-text placeholder:text-gray-muted/50 focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy/25 resize-none transition-all"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setRejectDespesaDialog({ open: false, id: '', nota: '' })}
+                className="flex-1 h-10 rounded-xl border border-gray-border text-[13px] font-semibold text-gray-text hover:bg-gray-bg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmRejeitarDespesa}
+                disabled={rejectDespesaPending}
+                className="flex-1 h-10 rounded-xl bg-error text-white text-[13px] font-bold hover:bg-red-600 transition-colors disabled:opacity-60"
+              >
+                {rejectDespesaPending ? 'A rejeitar...' : 'Confirmar Rejeição'}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Modal Recibo de Pagamento ──────────────────────────────────── */}
       <ReciboPagamentoModal

@@ -5,7 +5,7 @@ import type { Apontamento } from '@/types';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { Check, X, Camera } from 'lucide-react';
+import { Check, X, Camera, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ApontamentosTableProps {
@@ -15,6 +15,8 @@ interface ApontamentosTableProps {
   showActions?: boolean;
   onViewFotos?: (fotos: string[]) => void;
   isLoading?: boolean;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
 }
 
 function getInitials(name: string): string {
@@ -43,7 +45,7 @@ function Sk({ className = '' }: { className?: string }) {
   return <div className={`animate-pulse rounded bg-gray-200/80 ${className}`} />;
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, nota }: { status: string; nota?: string | null }) {
   const map: Record<string, { label: string; cls: string }> = {
     pendente: { label: 'Pendente', cls: 'bg-warning/10 text-warning border-warning/25' },
     aprovado: { label: 'Aprovado', cls: 'bg-success/10 text-success border-success/25' },
@@ -51,9 +53,20 @@ function StatusBadge({ status }: { status: string }) {
   };
   const s = map[status] ?? { label: status, cls: 'bg-gray-100 text-gray-500 border-gray-200' };
   return (
-    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold', s.cls)}>
-      {s.label}
-    </span>
+    <div className="flex flex-col items-center gap-0.5">
+      <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold', s.cls)}>
+        {s.label}
+      </span>
+      {status === 'rejeitado' && nota && (
+        <span
+          title={`Motivo: ${nota}`}
+          className="inline-flex items-center gap-0.5 text-[9px] text-error/70 font-medium cursor-help leading-none"
+        >
+          <Info size={8} />
+          ver nota
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -78,14 +91,50 @@ export function ApontamentosTable({
   showActions = true,
   onViewFotos,
   isLoading = false,
+  selectedIds,
+  onSelectionChange,
 }: ApontamentosTableProps) {
-  const colSpan = showActions ? 9 : 8;
+  const hasCheckboxes = !!onSelectionChange;
+  const selectedSet = new Set(selectedIds ?? []);
+  const pendingIds = apontamentos.filter((a) => a.status === 'pendente').map((a) => a.id);
+  const allPendingSelected = pendingIds.length > 0 && pendingIds.every((id) => selectedSet.has(id));
+
+  function toggleAll() {
+    if (allPendingSelected) {
+      onSelectionChange?.([]);
+    } else {
+      onSelectionChange?.([...pendingIds]);
+    }
+  }
+
+  function toggleRow(id: string) {
+    if (selectedSet.has(id)) {
+      onSelectionChange?.((selectedIds ?? []).filter((x) => x !== id));
+    } else {
+      onSelectionChange?.([...(selectedIds ?? []), id]);
+    }
+  }
+
+  const extraCols = hasCheckboxes ? 1 : 0;
+  const colSpan = extraCols + (showActions ? 9 : 8);
 
   return (
     <div className="w-full">
       <Table>
         <TableHeader>
           <TableRow className="border-gray-border/60 hover:bg-transparent bg-gray-bg/40">
+            {hasCheckboxes && (
+              <TableHead className="w-9 pl-3 h-9">
+                <input
+                  type="checkbox"
+                  checked={allPendingSelected}
+                  onChange={toggleAll}
+                  disabled={pendingIds.length === 0}
+                  className="w-3.5 h-3.5 rounded border-gray-border cursor-pointer disabled:opacity-30"
+                  title={allPendingSelected ? 'Desmarcar todos' : 'Selecionar todos pendentes'}
+                />
+              </TableHead>
+            )}
             <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted pl-5 h-9">Funcionário</TableHead>
             <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9">Obra</TableHead>
             <TableHead className="text-[10px] font-black uppercase tracking-widest text-gray-muted text-center h-9 hidden md:table-cell">Serviço</TableHead>
@@ -105,6 +154,7 @@ export function ApontamentosTable({
           {isLoading ? (
             Array.from({ length: 8 }).map((_, i) => (
               <TableRow key={i} className="border-gray-border/40">
+                {hasCheckboxes && <TableCell className="w-9 pl-3"><Sk className="h-3.5 w-3.5 rounded" /></TableCell>}
                 <TableCell className="pl-5 py-3">
                   <div className="flex items-center gap-2">
                     <Sk className="h-7 w-7 rounded-full shrink-0" />
@@ -132,12 +182,30 @@ export function ApontamentosTable({
             apontamentos.map((apt) => {
               const fotoUrls = apt.fotos?.map((f) => f.url) ?? [];
               const hasFotos = fotoUrls.length > 0;
+              const isPending = apt.status === 'pendente';
+              const isSelected = selectedSet.has(apt.id);
 
               return (
                 <TableRow
                   key={apt.id}
-                  className="border-gray-border/40 hover:bg-gray-bg/50 transition-colors"
+                  className={cn(
+                    'border-gray-border/40 hover:bg-gray-bg/50 transition-colors',
+                    isSelected && 'bg-accent-blue/5'
+                  )}
                 >
+                  {/* Checkbox */}
+                  {hasCheckboxes && (
+                    <TableCell className="w-9 pl-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleRow(apt.id)}
+                        disabled={!isPending}
+                        className="w-3.5 h-3.5 rounded border-gray-border cursor-pointer disabled:opacity-20"
+                      />
+                    </TableCell>
+                  )}
+
                   {/* Técnico */}
                   <TableCell className="pl-5 py-2.5">
                     <div className="flex items-center gap-2">
@@ -195,7 +263,7 @@ export function ApontamentosTable({
 
                   {/* Estado */}
                   <TableCell className="text-center px-3">
-                    <StatusBadge status={apt.status} />
+                    <StatusBadge status={apt.status} nota={apt.nota_rejeicao} />
                   </TableCell>
 
                   {/* Ações */}
@@ -216,7 +284,7 @@ export function ApontamentosTable({
                           </button>
                         )}
                         {/* Aprovar / Rejeitar (só se pendente) */}
-                        {apt.status === 'pendente' && (
+                        {isPending && (
                           <>
                             <button
                               onClick={() => onAprovar?.(apt.id)}

@@ -65,6 +65,7 @@ export default function InicioPage() {
   /* stats */
   const horasMes  = useMemo(() => apontamentos.filter(a => a.data_apontamento.startsWith(MES_KEY)).reduce((s, a) => s + (a.total_horas ?? 0), 0), [apontamentos]);
   const pendentes = useMemo(() => apontamentos.filter(a => a.status === 'pendente').length, [apontamentos]);
+  const blockedDates = useMemo(() => apontamentos.map(a => a.data_apontamento), [apontamentos]);
 
   /* obras únicas do histórico */
   const obrasHist = useMemo(() => {
@@ -327,7 +328,7 @@ export default function InicioPage() {
       )}
 
       {/* Modais */}
-      <ApontarModal open={modalOpen} onClose={() => setModalOpen(false)} obras={obras} onSubmit={handleApontar} isSubmitting={createApt.isPending} />
+      <ApontarModal open={modalOpen} onClose={() => setModalOpen(false)} obras={obras} onSubmit={handleApontar} isSubmitting={createApt.isPending} blockedDates={blockedDates} />
       <EditarApontamentoModal open={editingApt !== null} onClose={() => setEditingApt(null)} apontamento={editingApt} obras={obras} onSubmit={handleEdit} isSubmitting={updateApt.isPending} />
       <ConfirmDialog
         open={deletingAptId !== null}

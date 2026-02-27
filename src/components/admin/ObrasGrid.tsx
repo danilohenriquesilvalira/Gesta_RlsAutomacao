@@ -62,6 +62,11 @@ const IcoCal = () => (
     <path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" />
   </svg>
 )
+const IcoEuro = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+    <path d="M4 10h12" /><path d="M4 14h9" /><path d="M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12c0 4.4 3.5 8 7.8 8 2 0 3.8-.8 5.2-2" />
+  </svg>
+)
 
 export function ObrasGrid({ obras, onEdit, onDelete }: ObrasGridProps) {
   if (obras.length === 0) {
@@ -156,7 +161,7 @@ export function ObrasGrid({ obras, onEdit, onDelete }: ObrasGridProps) {
 
               {/* Prazo */}
               {obra.prazo && (
-                <div className={`flex items-center gap-1.5 text-xs mb-3 ${
+                <div className={`flex items-center gap-1.5 text-xs mb-2 ${
                   isOverdue ? 'text-error' : isUrgent ? 'text-warning' : 'text-gray-muted'
                 }`}>
                   <IcoCal />
@@ -164,6 +169,16 @@ export function ObrasGrid({ obras, onEdit, onDelete }: ObrasGridProps) {
                     {formatPrazo(obra.prazo)}
                     {isOverdue && ` — ${Math.abs(daysLeft!)} dias em atraso`}
                     {isUrgent && ` — ${daysLeft} dias restantes`}
+                  </span>
+                </div>
+              )}
+
+              {/* Orçamento */}
+              {obra.orcamento != null && (
+                <div className="flex items-center gap-1.5 text-xs mb-3 text-gray-muted">
+                  <IcoEuro />
+                  <span className="font-medium">
+                    {Number(obra.orcamento).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                   </span>
                 </div>
               )}

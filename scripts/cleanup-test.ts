@@ -34,7 +34,11 @@ const EMAILS_TESTE = [
 ];
 
 // Prefixos dos códigos de obra de teste a remover
-const PREFIXOS_OBRAS = ['RAM-', 'LUI-', 'ANT-', 'FER-'];
+const PREFIXOS_OBRAS = ['RAM-', 'LUI-', 'ANT-', 'FER-', 'BDGT-'];
+
+// ⚠️  Define como true APENAS se queres apagar os utilizadores também.
+// false = limpa apenas os dados (apontamentos, despesas, depósitos, obras).
+const APAGAR_UTILIZADORES = false;
 
 const RESET  = '\x1b[0m';
 const VERDE  = '\x1b[32m';
@@ -190,11 +194,16 @@ async function main() {
     error ? err(`Apagar obras ${prefixo}*`, error) : ok(`${data?.length ?? 0} obra(s) com prefixo ${prefixo} apagada(s)`);
   }
 
-  // 8. Apagar técnicos via RPC
-  sec('A apagar técnicos de teste…');
-  for (const tec of (perfilTecnicos ?? [])) {
-    const { error } = await client.rpc('delete_user_complete', { user_id: tec.id });
-    error ? err(`Apagar ${tec.full_name}`, error) : ok(`Técnico "${tec.full_name}" apagado completamente`);
+  // 8. Apagar técnicos via RPC (opcional — controla com APAGAR_UTILIZADORES)
+  if (APAGAR_UTILIZADORES) {
+    sec('A apagar técnicos de teste…');
+    for (const tec of (perfilTecnicos ?? [])) {
+      const { error } = await client.rpc('delete_user_complete', { user_id: tec.id });
+      error ? err(`Apagar ${tec.full_name}`, error) : ok(`Técnico "${tec.full_name}" apagado completamente`);
+    }
+  } else {
+    sec('Utilizadores mantidos (APAGAR_UTILIZADORES = false)');
+    ok('Dados de teste removidos. Utilizadores intactos — prontos para novo seed-dashboard-test.');
   }
 
   console.log(`\n${VERDE}${NEGR}  ✅ Limpeza concluída!${RESET}\n`);

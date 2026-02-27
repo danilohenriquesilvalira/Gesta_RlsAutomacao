@@ -82,6 +82,7 @@ export default function ApontamentosPage() {
   const pendentes    = useMemo(() => apontamentos.filter(a => a.status === 'pendente').length,  [apontamentos]);
   const aptAprovados = useMemo(() => apontamentos.filter(a => a.status === 'aprovado').length,  [apontamentos]);
   const aptRejeitados= useMemo(() => apontamentos.filter(a => a.status === 'rejeitado').length, [apontamentos]);
+  const blockedDates = useMemo(() => apontamentos.map(a => a.data_apontamento), [apontamentos]);
 
   // ── Obras únicas do histórico ───────────────────────────────────────────────
 
@@ -384,6 +385,7 @@ export default function ApontamentosPage() {
         obras={obras}
         onSubmit={handleApontar}
         isSubmitting={createApt.isPending}
+        blockedDates={blockedDates}
       />
       <EditarApontamentoModal
         open={editingApt !== null}

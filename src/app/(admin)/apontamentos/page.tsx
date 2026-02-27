@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { toast } from 'sonner';
 import { useApontamentos, useUpdateApontamentoStatus } from '@/lib/queries/apontamentos';
 import { useObras } from '@/lib/queries/obras';
 import { useTecnicos } from '@/lib/queries/tecnicos';
@@ -15,7 +16,7 @@ import { ApontamentosTable } from '@/components/admin/ApontamentosTable';
 import { cn } from '@/lib/utils';
 import {
   ClipboardList, Clock, AlertCircle, CheckCircle2,
-  X, ChevronLeft, ChevronRight,
+  X, ChevronLeft, ChevronRight, Check, XCircle,
 } from 'lucide-react';
 
 const PAGE_SIZE = 20;
@@ -36,6 +37,15 @@ export default function ApontamentosPage() {
   const [page, setPage] = useState(1);
   const [fotoModal, setFotoModal] = useState<string[] | null>(null);
 
+  // ── Seleção batch ──────────────────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // ── Diálogo de rejeição com nota ──────────────────────────────────────────
+  const [rejectDialog, setRejectDialog] = useState<{ open: boolean; ids: string[]; nota: string }>({
+    open: false, ids: [], nota: '',
+  });
+  const [rejectPending, setRejectPending] = useState(false);
+
   const { data: apontamentos = [], isLoading } = useApontamentos({
     tecnicoId: filters.tecnicoId || undefined,
     obraId: filters.obraId || undefined,
@@ -52,11 +62,13 @@ export default function ApontamentosPage() {
   const handleFilter = (key: string, value: string) => {
     setFilters((p) => ({ ...p, [key]: value }));
     setPage(1);
+    setSelectedIds([]);
   };
 
   const clearFilters = () => {
     setFilters({ tecnicoId: '', obraId: '', status: '', dataInicio: '', dataFim: '' });
     setPage(1);
+    setSelectedIds([]);
   };
 
   // ── Stats (sobre resultados filtrados) ──
@@ -73,13 +85,65 @@ export default function ApontamentosPage() {
   const totalPages = Math.max(1, Math.ceil(apontamentos.length / PAGE_SIZE));
   const paginated = apontamentos.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Números de página a mostrar (máx 7)
   const pageNumbers = useMemo(() => {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
     if (page <= 4) return [1, 2, 3, 4, 5, 6, 7];
     if (page >= totalPages - 3) return Array.from({ length: 7 }, (_, i) => totalPages - 6 + i);
     return Array.from({ length: 7 }, (_, i) => page - 3 + i);
   }, [page, totalPages]);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  // Aprovar único
+  async function handleAprovar(id: string) {
+    try {
+      await updateStatus.mutateAsync({ id, status: 'aprovado' });
+      toast.success('Apontamento aprovado');
+      setSelectedIds((prev) => prev.filter((x) => x !== id));
+    } catch {
+      toast.error('Erro ao aprovar apontamento');
+    }
+  }
+
+  // Rejeitar único — abre dialog
+  function handleRejeitar(id: string) {
+    setRejectDialog({ open: true, ids: [id], nota: '' });
+  }
+
+  // Aprovar batch
+  async function handleBatchAprovar() {
+    const ids = [...selectedIds];
+    setSelectedIds([]);
+    try {
+      await Promise.all(ids.map((id) => updateStatus.mutateAsync({ id, status: 'aprovado' })));
+      toast.success(`${ids.length} apontamento${ids.length > 1 ? 's' : ''} aprovado${ids.length > 1 ? 's' : ''}`);
+    } catch {
+      toast.error('Erro ao aprovar apontamentos');
+    }
+  }
+
+  // Rejeitar batch — abre dialog
+  function handleBatchRejeitar() {
+    setRejectDialog({ open: true, ids: [...selectedIds], nota: '' });
+  }
+
+  // Confirmar rejeição (único ou batch)
+  async function handleConfirmRejeitar() {
+    const { ids, nota } = rejectDialog;
+    setRejectPending(true);
+    try {
+      await Promise.all(
+        ids.map((id) => updateStatus.mutateAsync({ id, status: 'rejeitado', nota_rejeicao: nota.trim() || null }))
+      );
+      toast.success(`${ids.length} apontamento${ids.length > 1 ? 's' : ''} rejeitado${ids.length > 1 ? 's' : ''}`);
+      setSelectedIds((prev) => prev.filter((x) => !ids.includes(x)));
+      setRejectDialog({ open: false, ids: [], nota: '' });
+    } catch {
+      toast.error('Erro ao rejeitar apontamentos');
+    } finally {
+      setRejectPending(false);
+    }
+  }
 
   return (
     <div className="h-full flex flex-col gap-3 lg:overflow-hidden">
@@ -208,25 +272,59 @@ export default function ApontamentosPage() {
       {/* ── Tabela ────────────────────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden">
 
-        {/* Info bar */}
+        {/* Info bar / Batch action bar */}
         <div className="shrink-0 px-4 py-2 border-b border-gray-border/60 flex items-center justify-between bg-gray-bg/30">
-          <p className="text-[11px] text-gray-muted">
-            {isLoading ? (
-              <span>A carregar...</span>
-            ) : (
-              <>
-                <span className="font-black text-navy">{stats.total}</span>
-                {' '}apontamentos
-                {hasFilters && <span className="text-accent-blue font-semibold"> · filtrado</span>}
-              </>
-            )}
-          </p>
-          {!isLoading && apontamentos.length > 0 && (
-            <p className="text-[11px] text-gray-muted">
-              Pág. <span className="font-black text-navy">{page}</span>{' '}
-              de <span className="font-black text-navy">{totalPages}</span>
-              {' '}· {PAGE_SIZE} por página
-            </p>
+          {selectedIds.length > 0 ? (
+            /* Barra de ações batch */
+            <div className="flex items-center gap-3 w-full">
+              <span className="text-[11px] font-black text-accent-blue">
+                {selectedIds.length} selecionado{selectedIds.length > 1 ? 's' : ''}
+              </span>
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  onClick={handleBatchAprovar}
+                  className="flex items-center gap-1.5 h-7 px-3 rounded-lg bg-success/10 border border-success/25 text-success text-[12px] font-bold hover:bg-success hover:text-white transition-all"
+                >
+                  <Check size={12} />
+                  Aprovar {selectedIds.length}
+                </button>
+                <button
+                  onClick={handleBatchRejeitar}
+                  className="flex items-center gap-1.5 h-7 px-3 rounded-lg bg-error/10 border border-error/25 text-error text-[12px] font-bold hover:bg-error hover:text-white transition-all"
+                >
+                  <XCircle size={12} />
+                  Rejeitar {selectedIds.length}
+                </button>
+                <button
+                  onClick={() => setSelectedIds([])}
+                  className="flex items-center justify-center h-7 w-7 rounded-lg border border-gray-border text-gray-muted hover:text-navy transition-colors"
+                  title="Cancelar seleção"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-[11px] text-gray-muted">
+                {isLoading ? (
+                  <span>A carregar...</span>
+                ) : (
+                  <>
+                    <span className="font-black text-navy">{stats.total}</span>
+                    {' '}apontamentos
+                    {hasFilters && <span className="text-accent-blue font-semibold"> · filtrado</span>}
+                  </>
+                )}
+              </p>
+              {!isLoading && apontamentos.length > 0 && (
+                <p className="text-[11px] text-gray-muted">
+                  Pág. <span className="font-black text-navy">{page}</span>{' '}
+                  de <span className="font-black text-navy">{totalPages}</span>
+                  {' '}· {PAGE_SIZE} por página
+                </p>
+              )}
+            </>
           )}
         </div>
 
@@ -234,11 +332,13 @@ export default function ApontamentosPage() {
         <div className="flex-1 overflow-auto">
           <ApontamentosTable
             apontamentos={paginated}
-            onAprovar={(id) => updateStatus.mutate({ id, status: 'aprovado' })}
-            onRejeitar={(id) => updateStatus.mutate({ id, status: 'rejeitado' })}
+            onAprovar={handleAprovar}
+            onRejeitar={handleRejeitar}
             showActions
             onViewFotos={(fotos) => setFotoModal(fotos)}
             isLoading={isLoading}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
           />
         </div>
 
@@ -282,6 +382,50 @@ export default function ApontamentosPage() {
           </div>
         )}
       </div>
+
+      {/* ── Dialog: Rejeitar com nota ──────────────────────────────────────── */}
+      <Dialog open={rejectDialog.open} onOpenChange={(o) => !o && setRejectDialog({ open: false, ids: [], nota: '' })}>
+        <DialogContent className="max-w-md rounded-2xl p-0 gap-0">
+          <DialogHeader className="px-5 py-4 border-b border-gray-border/60">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Confirmação</p>
+              <DialogTitle className="text-navy font-black text-[16px] tracking-tight mt-0.5">
+                Rejeitar {rejectDialog.ids.length > 1 ? `${rejectDialog.ids.length} Apontamentos` : 'Apontamento'}
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="px-5 py-4 space-y-3">
+            <p className="text-[12px] text-gray-muted">
+              Indique o motivo da rejeição (opcional). O técnico poderá ver esta nota.
+            </p>
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Motivo / Nota</p>
+              <textarea
+                value={rejectDialog.nota}
+                onChange={(e) => setRejectDialog((p) => ({ ...p, nota: e.target.value }))}
+                placeholder="Ex: Horário incorrecto, faltam detalhes..."
+                rows={3}
+                className="w-full px-3 py-2 rounded-xl border border-gray-border bg-gray-bg text-[13px] text-gray-text placeholder:text-gray-muted/50 focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy/25 resize-none transition-all"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setRejectDialog({ open: false, ids: [], nota: '' })}
+                className="flex-1 h-10 rounded-xl border border-gray-border text-[13px] font-semibold text-gray-text hover:bg-gray-bg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmRejeitar}
+                disabled={rejectPending}
+                className="flex-1 h-10 rounded-xl bg-error text-white text-[13px] font-bold hover:bg-red-600 transition-colors disabled:opacity-60"
+              >
+                {rejectPending ? 'A rejeitar...' : 'Confirmar Rejeição'}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Lightbox de fotos ─────────────────────────────────────────────── */}
       <Dialog open={!!fotoModal} onOpenChange={() => setFotoModal(null)}>

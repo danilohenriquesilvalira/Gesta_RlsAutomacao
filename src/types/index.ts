@@ -43,6 +43,7 @@ export interface Obra {
   status: ObraStatus;
   progresso: number;
   prazo: string | null;
+  orcamento: number | null;
   localizacao: string | null;
   lat: number | null;
   lng: number | null;
@@ -63,6 +64,7 @@ export interface Apontamento {
   total_horas: number | null;
   descricao: string | null;
   status: ApontamentoStatus;
+  nota_rejeicao: string | null;
   data_apontamento: string;
   synced_at: string | null;
   created_at: string;
@@ -133,6 +135,7 @@ export interface Despesa {
   valor: number;
   data_despesa: string;
   status: DespesaStatus;
+  nota_rejeicao: string | null;
   created_at: string;
   // joined
   tecnico?: Profile;

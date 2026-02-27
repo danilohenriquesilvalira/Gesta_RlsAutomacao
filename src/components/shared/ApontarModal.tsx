@@ -65,6 +65,7 @@ interface ApontarModalProps {
     total_horas: number; fotos_base64: string[];
   }) => void;
   isSubmitting?: boolean;
+  blockedDates?: string[];
 }
 
 /*
@@ -99,7 +100,7 @@ const nativeFieldErr: React.CSSProperties = {
 const sTrigger    = '!h-10 !py-0 rounded-xl border-slate-200 bg-slate-50 shadow-none text-sm';
 const sTriggerErr = '!h-10 !py-0 rounded-xl border-red-400 bg-red-50 shadow-none text-sm';
 
-export function ApontarModal({ open, onClose, obras, onSubmit, isSubmitting }: ApontarModalProps) {
+export function ApontarModal({ open, onClose, obras, onSubmit, isSubmitting, blockedDates = [] }: ApontarModalProps) {
   const [tipoRegisto, setTipoRegisto] = useState<TipoRegisto>('obra');
   const [tipoHora,    setTipoHora]    = useState<TipoHora>('normal');
 
@@ -123,6 +124,10 @@ export function ApontarModal({ open, onClose, obras, onSubmit, isSubmitting }: A
   function handleFormSubmit(data: FormData) {
     if (tipoRegisto === 'obra' && !data.obra_id) {
       setError('obra_id', { message: 'Selecione a obra' });
+      return;
+    }
+    if (blockedDates.includes(data.data_apontamento)) {
+      setError('data_apontamento', { message: 'Já existe um registo para esta data. Escolha outra data.' });
       return;
     }
     const total = calcTotalHoras(data.hora_entrada, data.hora_saida);

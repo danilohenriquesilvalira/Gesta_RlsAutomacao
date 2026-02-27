@@ -8,7 +8,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import { Check, X, Eye, FileText } from 'lucide-react';
+import { Check, X, Eye, FileText, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DespesasTableProps {
@@ -31,7 +31,7 @@ function Sk({ className = '' }: { className?: string }) {
   return <div className={`animate-pulse rounded bg-gray-200/80 ${className}`} />;
 }
 
-function StatusBadge({ status }: { status: DespesaStatus }) {
+function StatusBadge({ status, nota }: { status: DespesaStatus; nota?: string | null }) {
   const map: Record<DespesaStatus, { label: string; cls: string }> = {
     pendente: { label: 'Pendente', cls: 'bg-warning/10 text-warning border-warning/25' },
     aprovada: { label: 'Aprovada', cls: 'bg-success/10 text-success border-success/25' },
@@ -39,9 +39,20 @@ function StatusBadge({ status }: { status: DespesaStatus }) {
   };
   const s = map[status];
   return (
-    <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold', s.cls)}>
-      {s.label}
-    </span>
+    <div className="flex flex-col items-center gap-0.5">
+      <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-bold', s.cls)}>
+        {s.label}
+      </span>
+      {status === 'rejeitada' && nota && (
+        <span
+          title={`Motivo: ${nota}`}
+          className="inline-flex items-center gap-0.5 text-[9px] text-error/70 font-medium cursor-help leading-none"
+        >
+          <Info size={8} />
+          ver nota
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -175,7 +186,7 @@ export function DespesasTable({
 
                   {/* Estado */}
                   <TableCell className="text-center px-3">
-                    <StatusBadge status={despesa.status} />
+                    <StatusBadge status={despesa.status} nota={despesa.nota_rejeicao} />
                   </TableCell>
 
                   {/* Ações */}
@@ -250,6 +261,9 @@ export function DespesasTable({
                   { label: 'Valor', value: `${Number(viewDespesa.valor).toLocaleString('pt-PT', { minimumFractionDigits: 2 })} €` },
                   { label: 'Data', value: formatDate(viewDespesa.data_despesa) },
                   ...(viewDespesa.descricao ? [{ label: 'Descrição', value: viewDespesa.descricao }] : []),
+                  ...(viewDespesa.status === 'rejeitada' && viewDespesa.nota_rejeicao
+                    ? [{ label: 'Motivo', value: viewDespesa.nota_rejeicao }]
+                    : []),
                 ].map((row, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-muted w-20 shrink-0 pt-0.5">{row.label}</span>

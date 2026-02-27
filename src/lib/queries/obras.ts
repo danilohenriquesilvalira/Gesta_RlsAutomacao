@@ -49,6 +49,7 @@ export function useCreateObra() {
       nome: string;
       cliente: string;
       prazo?: string;
+      orcamento?: number | null;
       created_by?: string;
       localizacao?: string;
       lat?: number;

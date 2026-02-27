@@ -221,11 +221,17 @@ export function useUpdateDespesaStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: DespesaStatus }) => {
+    mutationFn: async ({ id, status, nota_rejeicao }: {
+      id: string;
+      status: DespesaStatus;
+      nota_rejeicao?: string | null;
+    }) => {
       const supabase = createClient();
+      const payload: Record<string, unknown> = { status };
+      if (nota_rejeicao !== undefined) payload.nota_rejeicao = nota_rejeicao;
       const { error } = await supabase
         .from('despesas')
-        .update({ status })
+        .update(payload)
         .eq('id', id);
       if (error) throw error;
     },

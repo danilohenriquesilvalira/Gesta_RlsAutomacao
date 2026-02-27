@@ -110,11 +110,17 @@ export function useUpdateApontamentoStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, nota_rejeicao }: {
+      id: string;
+      status: string;
+      nota_rejeicao?: string | null;
+    }) => {
       const supabase = createClient();
+      const payload: Record<string, unknown> = { status };
+      if (nota_rejeicao !== undefined) payload.nota_rejeicao = nota_rejeicao;
       const { error } = await supabase
         .from('apontamentos')
-        .update({ status })
+        .update(payload)
         .eq('id', id);
       if (error) throw error;
     },

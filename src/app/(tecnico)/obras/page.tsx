@@ -806,6 +806,13 @@ function ObraCard({ obra, isUpdating, onEdit, onFinalize, onReactivate, onDelete
       ? `https://www.google.com/maps/search/${encodeURIComponent(obra.localizacao)}`
       : null;
 
+  // Prazo / deadline
+  const daysLeft = obra.prazo
+    ? Math.ceil((new Date(obra.prazo + 'T00:00:00').getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000)
+    : null;
+  const isOverdue = daysLeft !== null && daysLeft < 0;
+  const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft < 7;
+
   return (
     <div className={`relative bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden transition-shadow ${
       isUpdating ? 'opacity-60' : 'hover:shadow-md'
@@ -865,6 +872,20 @@ function ObraCard({ obra, isUpdating, onEdit, onFinalize, onReactivate, onDelete
               ) : (
                 <span className="line-clamp-2">{obra.localizacao}</span>
               )}
+            </div>
+          )}
+
+          {/* Prazo */}
+          {obra.prazo && (
+            <div className={`flex items-center gap-2 text-xs ${isOverdue ? 'text-error' : isUrgent ? 'text-warning' : 'text-gray-muted'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                <path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" />
+              </svg>
+              <span>
+                {new Date(obra.prazo + 'T00:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                {isOverdue && ` — ${Math.abs(daysLeft!)}d atraso`}
+                {isUrgent && ` — ${daysLeft}d restantes`}
+              </span>
             </div>
           )}
         </div>
