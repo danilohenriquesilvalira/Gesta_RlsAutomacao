@@ -175,6 +175,13 @@ export function useTecnicosComHoras(mes?: string) {
         .lte('data_apontamento', endDate)
         .eq('status', 'aprovado');
 
+      // Obras ativas com created_by válido — inclui nome e localizacao para exibir no card
+      const { data: obrasAtivas } = await supabase
+        .from('obras')
+        .select('id, created_by, nome, localizacao')
+        .eq('status', 'ativa')
+        .not('created_by', 'is', null);
+
       return (tecnicos as Profile[]).map((tec) => {
         const tecApts = apontamentos?.filter((a) => a.tecnico_id === tec.id) ?? [];
         const horasNormais = tecApts
@@ -183,14 +190,22 @@ export function useTecnicosComHoras(mes?: string) {
         const horasExtras = tecApts
           .filter((a) => a.tipo_hora !== 'normal')
           .reduce((sum, a) => sum + (a.total_horas ?? 0), 0);
-        const obraAtual = tecApts.length > 0 ? (tecApts[0] as Record<string, unknown>).obras : null;
+
+        // Obras ativas vinculadas a este técnico via created_by (fonte de verdade)
+        const tecObras = (obrasAtivas ?? []).filter((o) => o.created_by === tec.id);
+        const primeiraObra = tecObras[0] ?? null;
+        // Mostra a localização da obra ativa; fallback para o nome da obra
+        const obraAtualDisplay = primeiraObra
+          ? (primeiraObra.localizacao || primeiraObra.nome)
+          : null;
 
         return {
           ...tec,
           horasNormais,
           horasExtras,
           totalHoras: horasNormais + horasExtras,
-          obraAtual: obraAtual ? (obraAtual as { nome: string }).nome : null,
+          obraAtual: obraAtualDisplay,
+          obrasAtivas: tecObras.length,
         };
       });
     },

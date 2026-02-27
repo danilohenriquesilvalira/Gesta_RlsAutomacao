@@ -108,10 +108,9 @@ export type TipoDespesa =
 export type DespesaStatus = 'pendente' | 'aprovada' | 'rejeitada';
 
 export const TIPOS_DESPESA: TipoDespesa[] = [
-  'alojamento',
-  'alimentação',
-  'transporte',
   'combustível',
+  'alimentação',
+  'alojamento',
   'material',
   'outro',
 ];

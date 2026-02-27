@@ -292,7 +292,7 @@ function LocationPicker({ localizacao, lat, lng, onChange }: LocationPickerProps
 
 export default function MinhasObrasPage() {
   const { profile } = useAuth();
-  const { data: obras = [], isLoading } = useObras();
+  const { data: obras = [], isLoading } = useObras(undefined, profile?.id, { enabled: !!profile?.id });
   const createObra = useCreateObra();
   const updateObra = useUpdateObra();
   const deleteObra = useDeleteObra();
@@ -402,10 +402,19 @@ export default function MinhasObrasPage() {
 
   async function handleFinalize(obra: Obra) {
     try {
-      await updateObra.mutateAsync({ id: obra.id, status: 'concluida' });
+      await updateObra.mutateAsync({ id: obra.id, status: 'concluida', progresso: 100 });
       toast.success(`"${obra.nome}" concluída!`);
     } catch (err: any) {
       toast.error(err.message || 'Erro ao finalizar obra');
+    }
+  }
+
+  async function handleUpdateProgress(obra: Obra, progresso: number) {
+    try {
+      await updateObra.mutateAsync({ id: obra.id, progresso });
+      toast.success('Progresso atualizado!');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao atualizar progresso');
     }
   }
 
@@ -593,6 +602,7 @@ export default function MinhasObrasPage() {
                 onFinalize={() => handleFinalize(obra)}
                 onReactivate={() => handleReactivate(obra)}
                 onDelete={() => setDeleteTarget(obra)}
+                onUpdateProgress={(prog) => handleUpdateProgress(obra, prog)}
                 isUpdating={updateObra.isPending && (updateObra.variables as any)?.id === obra.id}
               />
             ))}
@@ -769,6 +779,7 @@ interface ObraCardProps {
   onFinalize: () => void;
   onReactivate: () => void;
   onDelete: () => void;
+  onUpdateProgress: (progresso: number) => void;
 }
 
 const OBRA_BAR: Record<ObraStatus, string> = {
@@ -777,7 +788,17 @@ const OBRA_BAR: Record<ObraStatus, string> = {
   concluida: 'bg-gray-muted',
 };
 
-function ObraCard({ obra, isUpdating, onEdit, onFinalize, onReactivate, onDelete }: ObraCardProps) {
+function ObraCard({ obra, isUpdating, onEdit, onFinalize, onReactivate, onDelete, onUpdateProgress }: ObraCardProps) {
+  const [localProg, setLocalProg] = useState<number>(obra.progresso ?? 0);
+
+  // Sincroniza quando a obra é atualizada externamente
+  useEffect(() => {
+    setLocalProg(obra.progresso ?? 0);
+  }, [obra.progresso]);
+
+  const isDirty = localProg !== (obra.progresso ?? 0);
+  const progColor = localProg >= 80 ? '#10b981' : localProg >= 50 ? '#2563eb' : '#f59e0b';
+
   const mapsUrl =
     obra.lat && obra.lng
       ? `https://www.google.com/maps?q=${obra.lat},${obra.lng}`
@@ -849,17 +870,52 @@ function ObraCard({ obra, isUpdating, onEdit, onFinalize, onReactivate, onDelete
         </div>
 
         {/* Progresso */}
-        {obra.progresso > 0 && (
-          <div className="mt-3 space-y-1">
-            <div className="flex justify-between text-[10px] text-gray-muted">
-              <span>Progresso</span>
-              <span className="font-semibold">{obra.progresso}%</span>
-            </div>
-            <div className="h-1.5 w-full rounded-full bg-gray-100">
-              <div className="h-1.5 rounded-full bg-accent-blue transition-all" style={{ width: `${obra.progresso}%` }} />
+        <div className="mt-3 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] text-gray-muted">Progresso</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[12px] font-black text-navy" style={{ color: progColor }}>
+                {localProg}%
+              </span>
+              {obra.status !== 'concluida' && isDirty && (
+                <button
+                  onClick={() => onUpdateProgress(localProg)}
+                  disabled={isUpdating}
+                  className="px-2 py-0.5 rounded-md bg-navy text-white text-[9px] font-bold hover:bg-navy-light transition-colors disabled:opacity-50"
+                >
+                  Guardar
+                </button>
+              )}
             </div>
           </div>
-        )}
+
+          {obra.status !== 'concluida' ? (
+            /* Slider interactivo para obras ativas / pausadas */
+            <div className="space-y-1">
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={localProg}
+                onChange={(e) => setLocalProg(Number(e.target.value))}
+                disabled={isUpdating}
+                className="w-full h-1.5 cursor-pointer disabled:cursor-not-allowed"
+                style={{ accentColor: progColor }}
+              />
+              <div className="flex justify-between text-[9px] text-gray-muted/60 px-0.5">
+                <span>0%</span>
+                <span>50%</span>
+                <span>100%</span>
+              </div>
+            </div>
+          ) : (
+            /* Barra estática para obras concluídas */
+            <div className="h-1.5 w-full rounded-full bg-gray-100">
+              <div className="h-1.5 rounded-full bg-success transition-all" style={{ width: `${localProg}%` }} />
+            </div>
+          )}
+        </div>
 
         {/* Ações */}
         <div className="border-t border-gray-border/70 mt-3 pt-2.5 flex gap-1.5">

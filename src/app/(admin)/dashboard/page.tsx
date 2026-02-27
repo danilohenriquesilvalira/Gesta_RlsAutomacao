@@ -5,14 +5,14 @@ import { cn } from '@/lib/utils';
 import { useApontamentos, useUpdateApontamentoStatus } from '@/lib/queries/apontamentos';
 import { useTecnicosComHoras } from '@/lib/queries/tecnicos';
 import { useObras } from '@/lib/queries/obras';
-import { useDespesas, useDepositos } from '@/lib/queries/despesas';
+import { useDespesas, useDepositos, useUpdateDespesaStatus } from '@/lib/queries/despesas';
 import {
   AreaChart, Area,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts';
 import {
-  Clock, Users, Building2, Wallet, AlertCircle, CheckCircle2, XCircle,
+  Clock, Users, Building2, Wallet, AlertCircle, CheckCircle2, XCircle, Receipt, Timer, MapPin,
 } from 'lucide-react';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -97,7 +97,8 @@ export default function AdminDashboardPage() {
   const { data: obras = [], isLoading: lObras } = useObras();
   const { data: despesas = [], isLoading: lDesp } = useDespesas();
   const { data: depositos = [], isLoading: lDep } = useDepositos();
-  const updateStatus = useUpdateApontamentoStatus();
+  const updateAptStatus  = useUpdateApontamentoStatus();
+  const updateDespStatus = useUpdateDespesaStatus();
 
   const isLoading = lApt || lTec || lDesp || lDep || lObras;
 
@@ -188,7 +189,7 @@ export default function AdminDashboardPage() {
   // ── Obras: custo vs progresso (cruzamento chave) ──────────────────────────
   const obrasInsight = useMemo(() =>
     obras
-      .filter((o) => o.status === 'ativa')
+      .filter((o) => o.status === 'ativa' && !!o.created_by)
       .map((o) => {
         const custo = despesas
           .filter((d) => d.obra_id === o.id && d.status === 'aprovada')
@@ -198,21 +199,37 @@ export default function AdminDashboardPage() {
           .reduce((s, a) => s + (a.total_horas ?? 0), 0);
         const prog = o.progresso ?? 0;
         const risco = custo > 0 && prog < 40 ? 'alto' : custo > 0 && prog < 70 ? 'medio' : 'ok';
-        return { id: o.id, nome: o.nome, codigo: o.codigo, cliente: o.cliente, prog, custo, horas, risco };
+        return { id: o.id, nome: o.nome, codigo: o.codigo, cliente: o.cliente, prog, custo, horas, risco, localizacao: o.localizacao, executante: o.executante };
       })
       .sort((a, b) => b.custo - a.custo)
       .slice(0, 6),
     [obras, despesas, apontamentos]
   );
 
-  // ── Pendentes de aprovação ────────────────────────────────────────────────
-  const pendentes = useMemo(() =>
-    apontamentos
+  // ── Pendentes de aprovação (apontamentos + despesas combinados) ───────────
+  const pendentesCombo = useMemo(() => {
+    const apts = apontamentos
       .filter((a) => a.status === 'pendente')
-      .sort((a, b) => b.data_apontamento.localeCompare(a.data_apontamento))
-      .slice(0, 8),
-    [apontamentos]
-  );
+      .map((a) => ({
+        id: a.id,
+        tipo: 'apontamento' as const,
+        tecnicoNome: a.tecnico?.full_name ?? '—',
+        obraNome: a.obra?.nome ?? 'Oficina',
+        subtitulo: `${a.tipo_servico} · ${fmtH(a.total_horas ?? 0)}`,
+        data: a.data_apontamento,
+      }));
+    const desps = despesas
+      .filter((d) => d.status === 'pendente')
+      .map((d) => ({
+        id: d.id,
+        tipo: 'despesa' as const,
+        tecnicoNome: d.tecnico?.full_name ?? '—',
+        obraNome: d.obra?.nome ?? '—',
+        subtitulo: `${d.tipo_despesa.charAt(0).toUpperCase() + d.tipo_despesa.slice(1)} · ${eur(Number(d.valor))}`,
+        data: d.data_despesa,
+      }));
+    return [...apts, ...desps].sort((a, b) => b.data.localeCompare(a.data));
+  }, [apontamentos, despesas]);
 
   const today = new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -225,7 +242,7 @@ export default function AdminDashboardPage() {
       <div className="shrink-0 flex items-end justify-between">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-muted">Administração</p>
-          <h1 className="text-xl font-black text-navy tracking-tight">Painel de Controlo</h1>
+          <h1 className="text-[18px] font-black text-navy tracking-tight">Painel de Controlo</h1>
         </div>
         <p className="text-[11px] text-gray-muted font-medium capitalize hidden sm:block">{today}</p>
       </div>
@@ -247,7 +264,7 @@ export default function AdminDashboardPage() {
                 <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted leading-tight">{k.label}</p>
                 <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${k.iconBg}`}>{k.icon}</div>
               </div>
-              <p className={`font-black text-navy leading-none ${(k as any).small ? 'text-[14px]' : 'text-[20px]'}`}>{k.value}</p>
+              <p className={`font-black text-navy leading-none ${(k as any).small ? 'text-[13px]' : 'text-[18px]'}`}>{k.value}</p>
             </div>
           </div>
         ))}
@@ -301,30 +318,32 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Custo por Categoria (Donut) — col-span-2, mesma altura */}
+          {/* Análise de Custos + Obras — card combinado, col-span-2 */}
           <div className="lg:col-span-2 bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden flex flex-col" style={{ height: 360 }}>
-            <div className="px-4 py-2.5 border-b border-gray-border/60 shrink-0">
-              <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Custos Aprovados</p>
-              <h3 className="text-[13px] font-bold text-navy">Por Categoria</h3>
+            <div className="px-4 py-2 border-b border-gray-border/60 shrink-0">
+              <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Custos & Projetos</p>
+              <h3 className="text-[12px] font-bold text-navy">Análise de Custos</h3>
             </div>
-            <div className="flex-1 min-h-0 px-4 py-3 flex items-center">
+
+            {/* ── Secção superior: Donut ── */}
+            <div className="shrink-0 px-4 py-2.5 flex items-center gap-3" style={{ height: 148 }}>
               {isLoading ? (
-                <div className="flex gap-4 items-center w-full">
-                  <Sk className="h-32 w-32 rounded-full shrink-0" />
-                  <div className="flex-1 space-y-2.5">
-                    {Array.from({ length: 5 }).map((_, i) => <Sk key={i} className="h-3.5 w-full" />)}
+                <div className="flex gap-3 items-center w-full">
+                  <Sk className="h-24 w-24 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    {Array.from({ length: 4 }).map((_, i) => <Sk key={i} className="h-3 w-full" />)}
                   </div>
                 </div>
               ) : custosPorTipo.length === 0 ? (
                 <div className="w-full flex items-center justify-center">
-                  <p className="text-xs text-gray-muted">Sem despesas aprovadas</p>
+                  <p className="text-[11px] text-gray-muted">Sem despesas aprovadas</p>
                 </div>
               ) : (
-                <div className="flex items-center gap-4 w-full">
-                  <div className="shrink-0" style={{ width: 128, height: 128 }}>
+                <div className="flex items-center gap-3 w-full">
+                  <div className="shrink-0" style={{ width: 100, height: 100 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={custosPorTipo} cx="50%" cy="50%" innerRadius={36} outerRadius={58} paddingAngle={2} dataKey="value" strokeWidth={0}>
+                        <Pie data={custosPorTipo} cx="50%" cy="50%" innerRadius={28} outerRadius={46} paddingAngle={2} dataKey="value" strokeWidth={0}>
                           {custosPorTipo.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
@@ -333,16 +352,66 @@ export default function AdminDashboardPage() {
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="flex-1 space-y-2.5 min-w-0">
-                    {custosPorTipo.map((t) => (
+                  <div className="flex-1 space-y-2 min-w-0">
+                    {custosPorTipo.slice(0, 5).map((t) => (
                       <div key={t.name} className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                        <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
                         <span className="text-[10px] font-semibold text-navy flex-1 truncate">{t.name}</span>
                         <span className="text-[10px] font-black text-gray-muted shrink-0">{t.pct}%</span>
                       </div>
                     ))}
                   </div>
                 </div>
+              )}
+            </div>
+
+            {/* ── Separador ── */}
+            <div className="mx-4 flex items-center gap-2 shrink-0">
+              <div className="flex-1 border-t border-gray-border/60" />
+              <span className="text-[8px] font-black uppercase tracking-widest text-gray-muted px-1">Obras em Curso</span>
+              <div className="flex-1 border-t border-gray-border/60" />
+            </div>
+
+            {/* ── Secção inferior: Obras progresso ── */}
+            <div className="flex-1 overflow-y-auto px-4 py-2.5 space-y-2.5">
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => <Sk key={i} className="h-8 w-full" />)
+              ) : obrasInsight.length === 0 ? (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-[11px] text-gray-muted">Sem obras ativas com dados</p>
+                </div>
+              ) : (
+                obrasInsight.map((o) => {
+                  const progColor = o.prog >= 80 ? '#10b981' : o.prog >= 50 ? '#2563eb' : '#f59e0b';
+                  const riscoColor = o.risco === 'alto' ? 'text-error' : o.risco === 'medio' ? 'text-warning' : 'text-success';
+                  const tecNome = (o.executante as any)?.full_name?.split(' ')[0] ?? null;
+                  const local = o.localizacao || o.cliente;
+                  return (
+                    <div key={o.id} className="space-y-1">
+                      {/* Topo: Nome da obra + Badge do técnico */}
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[10px] font-bold text-navy truncate leading-tight flex-1">{o.nome}</p>
+                        {tecNome && (
+                          <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-blue-50 text-accent-blue text-[9px] font-bold leading-none">
+                            {tecNome}
+                          </span>
+                        )}
+                      </div>
+                      {/* Meio: Barra de progresso mais espessa */}
+                      <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${o.prog}%`, backgroundColor: progColor }} />
+                      </div>
+                      {/* Rodapé: Localização + percentagem */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1 min-w-0">
+                          <MapPin size={9} className="text-gray-muted shrink-0" />
+                          <span className="text-[9px] text-gray-muted truncate">{local}</span>
+                        </div>
+                        <span className={`text-[9px] font-black shrink-0 ${riscoColor}`}>{o.prog}%</span>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -354,8 +423,8 @@ export default function AdminDashboardPage() {
           {/* Performance da Equipa — col-span-3 */}
           <div className="lg:col-span-3 bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden flex flex-col">
             <div className="px-4 py-2.5 border-b border-gray-border/60 shrink-0">
-              <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Ranking</p>
-              <h3 className="text-[13px] font-bold text-navy">Performance da Equipa</h3>
+              <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Equipa</p>
+              <h3 className="text-[13px] font-bold text-navy">Resumo da Equipa</h3>
             </div>
             <div className="flex-1 overflow-auto">
               <table className="w-full text-[11px]">
@@ -386,7 +455,6 @@ export default function AdminDashboardPage() {
                       <tr key={t.id} className="border-b border-gray-border/30 last:border-0 hover:bg-gray-bg/50 transition-colors">
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-black text-gray-muted w-3 shrink-0">{i + 1}</span>
                             <div className="w-6 h-6 rounded-full bg-navy flex items-center justify-center shrink-0 overflow-hidden">
                               {t.avatar_url
                                 ? <img src={t.avatar_url} alt={t.full_name} className="w-full h-full object-cover" />
@@ -416,94 +484,54 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Col direita: Fluxo + Obras — col-span-2 */}
-          <div className="lg:col-span-2 flex flex-col gap-3 min-h-0">
-
-            {/* Fluxo de Caixa — barras HORIZONTAIS */}
-            <div className="bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden shrink-0">
-              <div className="px-4 py-2.5 border-b border-gray-border/60 flex items-center justify-between">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Fundo de Maneio</p>
-                  <h3 className="text-[13px] font-bold text-navy">Fluxo de Caixa</h3>
-                </div>
-                <div className="flex gap-2.5 text-[9px] font-semibold text-gray-muted">
-                  <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />Entrada</span>
-                  <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-error inline-block" />Gasto</span>
-                </div>
+          {/* Col direita: Fluxo de Caixa — col-span-2, flex-1 (ocupa toda a altura) */}
+          <div className="lg:col-span-2 bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden flex flex-col min-h-0">
+            <div className="px-4 py-2 border-b border-gray-border/60 flex items-center justify-between shrink-0">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Fundo de Maneio</p>
+                <h3 className="text-[12px] font-bold text-navy">Fluxo de Caixa</h3>
               </div>
-              <div className="px-2 py-2" style={{ height: Math.max(100, fluxoCaixaData.length * 38 + 28) }}>
-                {isLoading ? <Sk className="w-full h-full rounded-lg" /> : fluxoCaixaData.length === 0 ? (
-                  <div className="h-full flex items-center justify-center">
-                    <p className="text-xs text-gray-muted">Sem dados ainda</p>
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={fluxoCaixaData}
-                      layout="vertical"
-                      margin={{ top: 2, right: 12, left: 0, bottom: 2 }}
-                      barCategoryGap="28%"
-                      barGap={2}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                      <XAxis
-                        type="number"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: '#8896ae', fontSize: 9, fontWeight: 600 }}
-                        tickFormatter={(v) => `${v}€`}
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: '#3d4f6e', fontSize: 10, fontWeight: 700 }}
-                        width={52}
-                      />
-                      <Tooltip content={<TooltipEur />} cursor={{ fill: '#f8fafc' }} />
-                      <Bar dataKey="Depositado" fill="#10b981" radius={[0, 3, 3, 0]} maxBarSize={11} />
-                      <Bar dataKey="Gasto" fill="#ef4444" radius={[0, 3, 3, 0]} maxBarSize={11} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
+              <div className="flex gap-2.5 text-[9px] font-semibold text-gray-muted">
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />Entrada</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-error inline-block" />Gasto</span>
               </div>
             </div>
-
-            {/* Obras: Custo vs Progresso — flex-1 */}
-            <div className="flex-1 min-h-0 bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden flex flex-col">
-              <div className="px-4 py-2.5 border-b border-gray-border/60 shrink-0">
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Saúde Financeira</p>
-                <h3 className="text-[13px] font-bold text-navy">Obras — Progresso</h3>
-              </div>
-              <div className="flex-1 overflow-y-auto px-4 py-2.5 space-y-3">
-                {isLoading ? (
-                  Array.from({ length: 4 }).map((_, i) => <Sk key={i} className="h-9 w-full" />)
-                ) : obrasInsight.length === 0 ? (
-                  <div className="h-full flex items-center justify-center">
-                    <p className="text-xs text-gray-muted">Sem obras com dados</p>
-                  </div>
-                ) : (
-                  obrasInsight.map((o) => {
-                    const progColor = o.prog >= 80 ? '#10b981' : o.prog >= 50 ? '#2563eb' : '#f59e0b';
-                    const riscoColor = o.risco === 'alto' ? 'text-error' : o.risco === 'medio' ? 'text-warning' : 'text-success';
-                    return (
-                      <div key={o.id}>
-                        <div className="flex items-center justify-between mb-1 gap-2">
-                          <div className="min-w-0">
-                            <p className="text-[10px] font-bold text-navy truncate leading-tight">{o.nome}</p>
-                            <p className="text-[9px] text-gray-muted">{eur(o.custo)}</p>
-                          </div>
-                          <span className={`text-[10px] font-black shrink-0 ${riscoColor}`}>{o.prog}%</span>
-                        </div>
-                        <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${o.prog}%`, backgroundColor: progColor }} />
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+            <div className="flex-1 min-h-0 px-2 py-3">
+              {isLoading ? <Sk className="w-full h-full rounded-lg" /> : fluxoCaixaData.length === 0 ? (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-xs text-gray-muted">Sem dados ainda</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={fluxoCaixaData}
+                    layout="vertical"
+                    margin={{ top: 4, right: 12, left: 0, bottom: 4 }}
+                    barCategoryGap="30%"
+                    barGap={3}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                    <XAxis
+                      type="number"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#8896ae', fontSize: 9, fontWeight: 600 }}
+                      tickFormatter={(v) => `${v}€`}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#3d4f6e', fontSize: 10, fontWeight: 700 }}
+                      width={52}
+                    />
+                    <Tooltip content={<TooltipEur />} cursor={{ fill: '#f8fafc' }} />
+                    <Bar dataKey="Depositado" fill="#10b981" radius={[0, 3, 3, 0]} maxBarSize={12} />
+                    <Bar dataKey="Gasto" fill="#ef4444" radius={[0, 3, 3, 0]} maxBarSize={12} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
         </div>
@@ -516,56 +544,96 @@ export default function AdminDashboardPage() {
             <p className="text-[9px] font-black uppercase tracking-widest text-gray-muted">Ação Necessária</p>
             <h3 className="text-[13px] font-bold text-navy">Aprovações Pendentes</h3>
           </div>
-          {kpis.pendentesApt > 0 && (
-            <span className="min-w-5 h-5 px-1.5 rounded-full bg-warning/15 text-warning text-[10px] font-black flex items-center justify-center">
-              {kpis.pendentesApt}
-            </span>
+          {pendentesCombo.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-accent-blue text-[9px] font-bold">
+                <Timer size={9} /> {apontamentos.filter(a => a.status === 'pendente').length} apt.
+              </span>
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-600 text-[9px] font-bold">
+                <Receipt size={9} /> {despesas.filter(d => d.status === 'pendente').length} desp.
+              </span>
+              <span className="min-w-5 h-5 px-1.5 rounded-full bg-warning/15 text-warning text-[10px] font-black flex items-center justify-center">
+                {pendentesCombo.length}
+              </span>
+            </div>
           )}
         </div>
+
         {isLoading ? (
-          <div className="flex gap-2 px-4 py-3 overflow-x-auto">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex-none w-48 border border-gray-border/50 rounded-xl p-3 space-y-2">
-                <Sk className="h-3 w-28" /><Sk className="h-2.5 w-20" />
-                <div className="flex gap-1.5 pt-1"><Sk className="h-6 flex-1 rounded-lg" /><Sk className="h-6 w-6 rounded-lg" /></div>
+          <div className="divide-y divide-gray-border/30">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <Sk className="w-[3px] h-8 rounded-full shrink-0" />
+                <Sk className="h-5 w-20 rounded-md shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <Sk className="h-3 w-40" /><Sk className="h-2.5 w-28" />
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  <Sk className="h-7 w-20 rounded-lg" /><Sk className="h-7 w-7 rounded-lg" />
+                </div>
               </div>
             ))}
           </div>
-        ) : pendentes.length === 0 ? (
+        ) : pendentesCombo.length === 0 ? (
           <div className="flex items-center justify-center gap-2 py-3.5">
             <CheckCircle2 size={14} className="text-success" />
             <p className="text-xs font-semibold text-navy">Tudo em dia — sem aprovações pendentes</p>
           </div>
         ) : (
-          <div className="flex gap-2 px-3 py-3 overflow-x-auto">
-            {pendentes.map((a) => (
-              <div key={a.id} className="flex-none bg-gray-bg/50 border border-gray-border/60 rounded-xl px-3 py-2.5 flex flex-col gap-1.5" style={{ minWidth: 190 }}>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold text-navy truncate">
-                    {a.tecnico?.full_name?.split(' ')[0] ?? '—'} · {a.obra?.nome ?? 'Oficina'}
-                  </p>
-                  <p className="text-[10px] text-gray-muted">
-                    {a.tipo_servico} · {fmtH(a.total_horas ?? 0)} · {new Date(a.data_apontamento + 'T00:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' })}
-                  </p>
+          <div className="divide-y divide-gray-border/30 max-h-[264px] overflow-y-auto">
+            {pendentesCombo.map((item) => {
+              const isApt = item.tipo === 'apontamento';
+              return (
+                <div key={`${item.tipo}-${item.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-bg/40 transition-colors">
+                  {/* Barra lateral colorida por tipo */}
+                  <div className={cn('w-[3px] self-stretch rounded-full shrink-0 min-h-[36px]', isApt ? 'bg-accent-blue' : 'bg-amber-400')} />
+
+                  {/* Badge de tipo com ícone */}
+                  <div className={cn(
+                    'flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-bold shrink-0 leading-none',
+                    isApt ? 'bg-blue-50 text-accent-blue' : 'bg-amber-50 text-amber-600'
+                  )}>
+                    {isApt ? <Timer size={9} /> : <Receipt size={9} />}
+                    <span className="hidden sm:inline">{isApt ? 'Apontamento' : 'Despesa'}</span>
+                  </div>
+
+                  {/* Conteúdo */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-semibold text-navy truncate leading-tight">
+                      {item.tecnicoNome.split(' ')[0]} · {item.obraNome}
+                    </p>
+                    <p className="text-[10px] text-gray-muted leading-tight mt-0.5">
+                      {item.subtitulo} · {new Date(item.data + 'T00:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' })}
+                    </p>
+                  </div>
+
+                  {/* Botões de acção — cores sólidas para acessibilidade */}
+                  <div className="flex gap-1.5 shrink-0">
+                    <button
+                      onClick={() => isApt
+                        ? updateAptStatus.mutate({ id: item.id, status: 'aprovado' })
+                        : updateDespStatus.mutate({ id: item.id, status: 'aprovada' })
+                      }
+                      disabled={updateAptStatus.isPending || updateDespStatus.isPending}
+                      className="h-7 px-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center gap-1 text-[10px] font-bold"
+                    >
+                      <CheckCircle2 size={11} /> Aprovar
+                    </button>
+                    <button
+                      onClick={() => isApt
+                        ? updateAptStatus.mutate({ id: item.id, status: 'rejeitado' })
+                        : updateDespStatus.mutate({ id: item.id, status: 'rejeitada' })
+                      }
+                      disabled={updateAptStatus.isPending || updateDespStatus.isPending}
+                      className="h-7 w-7 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center"
+                      title="Rejeitar"
+                    >
+                      <XCircle size={11} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => updateStatus.mutate({ id: a.id, status: 'aprovado' })}
-                    className="flex-1 h-7 rounded-lg bg-success/10 text-success hover:bg-success hover:text-white transition-all flex items-center justify-center gap-1 text-[10px] font-bold"
-                    title="Aprovar"
-                  >
-                    <CheckCircle2 size={11} /> Aprovar
-                  </button>
-                  <button
-                    onClick={() => updateStatus.mutate({ id: a.id, status: 'rejeitado' })}
-                    className="h-7 w-7 rounded-lg bg-error/10 text-error hover:bg-error hover:text-white transition-all flex items-center justify-center"
-                    title="Rejeitar"
-                  >
-                    <XCircle size={11} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

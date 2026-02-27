@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import type { Despesa, DespesaStatus, TipoDespesa } from '@/types';
 import type { ReciboFile } from '@/components/tecnico/ReciboUpload';
-import { Plus, ChevronLeft, ChevronRight, Receipt, CheckCircle2, AlertCircle, XCircle, Eye, FileText, ExternalLink } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Receipt, CheckCircle2, AlertCircle, XCircle, Eye, FileText, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 
 function formatDate(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-PT', {
@@ -67,12 +67,14 @@ export default function MinhasDespesasPage() {
   const setSearch = (v: string) => { _setSearch(v); setPage(0); };
 
   const { data: despesas = [], isLoading } = useDespesas(
-    profile ? { tecnicoId: profile.id } : undefined
+    profile ? { tecnicoId: profile.id } : undefined,
+    { enabled: !!profile?.id }
   );
   const { data: meusRecibos = [], isLoading: lRecibos } = useRecibosPagamento(
     profile?.id ?? ''
   );
-  const { data: obras = [] } = useObras();
+  // Apenas obras deste técnico (created_by = profile.id) para o dropdown do modal
+  const { data: obras = [] } = useObras(undefined, profile?.id, { enabled: !!profile?.id });
   const createDespesa = useCreateDespesa();
   const updateDespesa = useUpdateDespesa();
   const deleteDespesaMutation = useDeleteDespesa();
@@ -112,6 +114,18 @@ export default function MinhasDespesasPage() {
   );
   const rangeStart = sortedFiltered.length === 0 ? 0 : page * ITEMS_PER_PAGE + 1;
   const rangeEnd   = Math.min((page + 1) * ITEMS_PER_PAGE, sortedFiltered.length);
+
+  // Agrupar a página actual por data (para layout em containers)
+  const groupedByDate = useMemo(() => {
+    const groups: Record<string, typeof paginated> = {};
+    for (const d of paginated) {
+      const key = new Date(d.data_despesa + 'T00:00:00')
+        .toLocaleDateString('pt-PT', { weekday: 'long', day: '2-digit', month: 'long' });
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(d);
+    }
+    return groups;
+  }, [paginated]);
 
   async function handleCreate(data: {
     obra_id?: string | null;
@@ -396,72 +410,87 @@ export default function MinhasDespesasPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {paginated.map((despesa) => (
-              <div
-                key={despesa.id}
-                className="relative bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden hover:shadow-md transition-shadow"
-              >
-                <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${TIPO_STATUS_BAR[despesa.status] ?? 'bg-gray-border'}`} />
-                <div className="pl-5 pr-4 pt-4 pb-3">
-                  {/* Header */}
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[10px] font-black text-accent-blue tracking-widest uppercase capitalize">
-                        {despesa.tipo_despesa}
-                      </span>
-                      <p className="text-sm font-semibold text-navy truncate mt-0.5">
-                        {despesa.obra?.nome || 'Oficina'}
-                      </p>
-                      {despesa.descricao && (
-                        <p className="text-xs text-gray-muted mt-0.5 truncate">{despesa.descricao}</p>
+          /* ── Layout agrupado por data ── */
+          <div className="space-y-3">
+            {Object.entries(groupedByDate).map(([date, dateDespesas]) => (
+              <div key={date} className="bg-white rounded-xl border border-gray-border shadow-sm overflow-hidden">
+
+                {/* Cabeçalho do grupo */}
+                <div className="px-4 py-2.5 border-b border-gray-border/60 bg-gray-bg/50 flex items-center justify-between">
+                  <p className="text-[11px] font-black text-navy capitalize">{date}</p>
+                  <span className="text-[10px] text-gray-muted font-medium">
+                    {dateDespesas.length} registo{dateDespesas.length !== 1 ? 's' : ''} · {eur(dateDespesas.reduce((s, d) => s + Number(d.valor), 0))}
+                  </span>
+                </div>
+
+                {/* Itens do grupo */}
+                <div className="divide-y divide-gray-border/40">
+                  {dateDespesas.map((despesa) => (
+                    <div key={despesa.id} className="relative flex items-center gap-3 pl-5 pr-4 py-3 hover:bg-gray-bg/30 transition-colors">
+
+                      {/* Barra de status à esquerda */}
+                      <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${TIPO_STATUS_BAR[despesa.status] ?? 'bg-gray-border'}`} />
+
+                      {/* Dot de cor por tipo */}
+                      <div
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: TIPO_COLORS[despesa.tipo_despesa] ?? '#94a3b8' }}
+                      />
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-semibold text-navy capitalize leading-tight">{despesa.tipo_despesa}</p>
+                        <p className="text-[10px] text-gray-muted truncate">{despesa.obra?.nome ?? 'Oficina'}</p>
+                        {despesa.descricao && (
+                          <p className="text-[10px] text-gray-muted/60 truncate">{despesa.descricao}</p>
+                        )}
+                      </div>
+
+                      {/* Recibos chip */}
+                      {(despesa.recibos?.length ?? 0) > 0 && (
+                        <span className="shrink-0 text-[9px] font-bold text-gray-muted hidden sm:block">
+                          {despesa.recibos!.length} recibo{despesa.recibos!.length !== 1 ? 's' : ''}
+                        </span>
                       )}
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-base font-black text-navy">{eur(Number(despesa.valor))}</p>
-                      <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${TIPO_STATUS_BADGE[despesa.status] ?? ''}`}>
-                        {TIPO_STATUS_LABEL[despesa.status]}
-                      </span>
-                    </div>
-                  </div>
-                  {/* Divider */}
-                  <div className="border-t border-gray-border/70 mb-3" />
-                  {/* Data */}
-                  <p className="text-xs text-gray-muted capitalize">
-                    {new Date(despesa.data_despesa + 'T00:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </p>
-                  {/* Acções */}
-                  <div className="border-t border-gray-border/70 mt-3 pt-2.5 flex gap-2">
-                    <button
-                      onClick={() => setViewDespesa(despesa)}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-gray-border py-1.5 text-xs font-semibold text-gray-text hover:border-navy hover:text-navy transition-colors"
-                    >
-                      <Eye size={11} />
-                      {despesa.recibos?.length ?? 0} recibo{(despesa.recibos?.length ?? 0) !== 1 ? 's' : ''}
-                    </button>
-                    {despesa.status === 'pendente' && (
-                      <>
+
+                      {/* Valor + badge */}
+                      <div className="text-right shrink-0">
+                        <p className="text-[13px] font-black text-navy">{eur(Number(despesa.valor))}</p>
+                        <span className={`inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${TIPO_STATUS_BADGE[despesa.status] ?? ''}`}>
+                          {TIPO_STATUS_LABEL[despesa.status]}
+                        </span>
+                      </div>
+
+                      {/* Acções */}
+                      <div className="flex items-center gap-1 shrink-0">
                         <button
-                          onClick={() => setEditDespesa(despesa)}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-gray-border py-1.5 text-xs font-semibold text-gray-text hover:border-navy hover:text-navy transition-colors"
+                          onClick={() => setViewDespesa(despesa)}
+                          title="Ver recibos"
+                          className="h-7 w-7 rounded-lg border border-gray-border text-gray-muted hover:border-navy hover:text-navy transition-colors flex items-center justify-center"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                          </svg>
-                          Editar
+                          <Eye size={11} />
                         </button>
-                        <button
-                          onClick={() => setDeleteDespesa(despesa)}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-error/25 py-1.5 text-xs font-semibold text-error hover:bg-error/5 transition-colors"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                          </svg>
-                          Apagar
-                        </button>
-                      </>
-                    )}
-                  </div>
+                        {despesa.status === 'pendente' && (
+                          <>
+                            <button
+                              onClick={() => setEditDespesa(despesa)}
+                              title="Editar"
+                              className="h-7 w-7 rounded-lg border border-gray-border text-gray-muted hover:border-navy hover:text-navy transition-colors flex items-center justify-center"
+                            >
+                              <Pencil size={11} />
+                            </button>
+                            <button
+                              onClick={() => setDeleteDespesa(despesa)}
+                              title="Apagar"
+                              className="h-7 w-7 rounded-lg border border-error/20 text-error hover:bg-error hover:text-white transition-colors flex items-center justify-center"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}

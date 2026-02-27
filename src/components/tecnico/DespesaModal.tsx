@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Wrench } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -304,7 +305,12 @@ export function DespesaModal({
                   <SelectValue placeholder="Selecione ou deixe em branco (oficina)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={OFICINA_VALUE}>🏭 Oficina / Sem obra associada</SelectItem>
+                  <SelectItem value={OFICINA_VALUE}>
+                    <div className="flex items-center gap-1.5">
+                      <Wrench size={12} className="shrink-0 text-gray-400" />
+                      <span>Oficina / Sem obra associada</span>
+                    </div>
+                  </SelectItem>
                   {obras
                     .filter((o) => o.status === 'ativa' || o.id === initialDespesa?.obra_id)
                     .map((obra) => (

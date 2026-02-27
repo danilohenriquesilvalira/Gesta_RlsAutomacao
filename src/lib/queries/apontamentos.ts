@@ -10,9 +10,10 @@ export function useApontamentos(filters?: {
   status?: string;
   dataInicio?: string;
   dataFim?: string;
-}) {
+}, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['apontamentos', filters],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       const supabase = createClient();
       let query = supabase

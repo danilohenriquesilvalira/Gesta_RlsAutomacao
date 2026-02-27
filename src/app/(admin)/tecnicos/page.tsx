@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import {
   Users, Clock, UserPlus, Pencil, ClipboardList, Building2, Power, Trash2,
-  Receipt, FileText, ExternalLink, PlusCircle,
+  Receipt, FileText, ExternalLink, PlusCircle, Search, ChevronLeft, ChevronRight, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -43,6 +43,12 @@ export default function TecnicosPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingTec, setEditingTec] = useState<TecnicoRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Filtros e paginação
+  const [search, setSearch] = useState('');
+  const [filterAtivo, setFilterAtivo] = useState<'todos' | 'ativo' | 'inativo'>('todos');
+  const [page, setPage] = useState(0);
+  const ITEMS_PER_PAGE = 9;
 
   // Recibos de pagamento
   const [recibosId, setRecibosId]           = useState<string | null>(null);
@@ -119,6 +125,23 @@ export default function TecnicosPage() {
     return { total: tecnicos.length, totalHoras, ativos };
   }, [tecnicos]);
 
+  const filteredTecnicos = useMemo(() => {
+    let result = tecnicos;
+    if (filterAtivo === 'ativo')   result = result.filter((t) => t.is_active);
+    if (filterAtivo === 'inativo') result = result.filter((t) => !t.is_active);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((t) => t.full_name.toLowerCase().includes(q));
+    }
+    return result;
+  }, [tecnicos, filterAtivo, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTecnicos.length / ITEMS_PER_PAGE));
+  const paginatedTecnicos = useMemo(
+    () => filteredTecnicos.slice(page * ITEMS_PER_PAGE, (page + 1) * ITEMS_PER_PAGE),
+    [filteredTecnicos, page]
+  );
+
   return (
     <div className="h-full flex flex-col gap-3 lg:overflow-hidden">
 
@@ -149,6 +172,54 @@ export default function TecnicosPage() {
             Novo Funcionário
           </button>
         </div>
+      </div>
+
+      {/* ── Pesquisa ──────────────────────────────────────────────────────── */}
+      <div className="shrink-0 relative">
+        <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-muted pointer-events-none" />
+        <input
+          type="text"
+          placeholder="Pesquisar por nome..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+          className="w-full h-10 pl-10 pr-9 rounded-xl border border-gray-border bg-white text-sm text-gray-text placeholder:text-gray-muted/50 focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy/30 transition-all"
+        />
+        {search && (
+          <button
+            onClick={() => { setSearch(''); setPage(0); }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-muted hover:text-gray-text transition-colors"
+          >
+            <X size={13} />
+          </button>
+        )}
+      </div>
+
+      {/* ── Filtro + contador ─────────────────────────────────────────────── */}
+      <div className="shrink-0 flex items-center justify-between gap-3">
+        <div className="inline-flex items-center bg-gray-100 rounded-xl p-[3px] gap-[2px]">
+          {([
+            { v: 'todos',   l: 'Todos'    },
+            { v: 'ativo',   l: 'Ativos'   },
+            { v: 'inativo', l: 'Inativos' },
+          ] as { v: 'todos' | 'ativo' | 'inativo'; l: string }[]).map(({ v, l }) => (
+            <button
+              key={v}
+              onClick={() => { setFilterAtivo(v); setPage(0); }}
+              className={`h-[30px] px-3 rounded-[9px] text-[11px] font-semibold transition-all whitespace-nowrap ${
+                filterAtivo === v
+                  ? 'bg-white shadow-sm text-navy'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+        {!isLoading && (
+          <p className="text-[11px] text-gray-muted shrink-0">
+            <span className="font-black text-navy">{filteredTecnicos.length}</span> funcionário{filteredTecnicos.length !== 1 ? 's' : ''}
+          </p>
+        )}
       </div>
 
       {/* ── Grid de cards ─────────────────────────────────────────────────── */}
@@ -185,17 +256,33 @@ export default function TecnicosPage() {
               </div>
             ))}
           </div>
-        ) : tecnicos.length === 0 ? (
+        ) : filteredTecnicos.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-center">
             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
               <Users size={22} className="text-gray-muted/50" />
             </div>
-            <p className="text-sm font-bold text-navy">Sem funcionários registados</p>
-            <p className="text-[12px] text-gray-muted mt-1">Crie o primeiro funcionário com o botão acima</p>
+            <p className="text-sm font-bold text-navy">
+              {search ? 'Nenhum funcionário encontrado' : 'Sem funcionários registados'}
+            </p>
+            <p className="text-[12px] text-gray-muted mt-1">
+              {search ? 'Tente outro termo de pesquisa.' : 'Crie o primeiro funcionário com o botão acima'}
+            </p>
+            <div className="flex gap-2 mt-2">
+              {search && (
+                <button className="text-xs text-accent-blue hover:underline font-medium" onClick={() => setSearch('')}>
+                  Limpar pesquisa
+                </button>
+              )}
+              {filterAtivo !== 'todos' && (
+                <button className="text-xs text-accent-blue hover:underline font-medium" onClick={() => setFilterAtivo('todos')}>
+                  Ver todos
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {tecnicos.map((tec) => {
+            {paginatedTecnicos.map((tec) => {
               const pct = Math.min((tec.totalHoras / MAX_HORAS_MES) * 100, 100);
               const isOvertime = tec.totalHoras > MAX_HORAS_MES;
               const isActive = tec.is_active; // estado real da BD
@@ -224,14 +311,24 @@ export default function TecnicosPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-[13px] font-bold text-navy leading-tight truncate">{tec.full_name}</p>
-                        {tec.obraAtual ? (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <Building2 size={9} className="text-accent-blue shrink-0" />
-                            <p className="text-[11px] text-accent-blue font-semibold truncate">{tec.obraAtual}</p>
-                          </div>
-                        ) : (
-                          <p className="text-[11px] text-gray-muted/60 mt-0.5 italic">Sem obra activa</p>
-                        )}
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {tec.obraAtual ? (
+                            <div className="flex items-center gap-1 min-w-0">
+                              <Building2 size={9} className="text-accent-blue shrink-0" />
+                              <p className="text-[11px] text-accent-blue font-semibold truncate">{tec.obraAtual}</p>
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-success/10 text-success text-[9px] font-bold leading-none">
+                              <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" />
+                              Disponível
+                            </span>
+                          )}
+                          {(tec as any).obrasAtivas > 1 && (
+                            <span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-accent-blue/10 text-accent-blue text-[9px] font-black leading-none">
+                              +{(tec as any).obrasAtivas - 1}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <span className={cn(
                         'shrink-0 px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wide',
@@ -338,6 +435,27 @@ export default function TecnicosPage() {
             })}
           </div>
         )}
+      </div>
+
+      {/* ── Paginação ─────────────────────────────────────────────────────── */}
+      <div className={`shrink-0 flex items-center justify-between pt-3 border-t border-gray-border ${isLoading || filteredTecnicos.length === 0 || totalPages <= 1 ? 'invisible' : ''}`}>
+        <button
+          onClick={() => setPage((p) => Math.max(0, p - 1))}
+          disabled={page === 0}
+          className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-border bg-white text-xs font-semibold text-gray-muted hover:text-navy hover:border-navy/30 disabled:opacity-30 disabled:pointer-events-none transition-all"
+        >
+          <ChevronLeft size={13} /> Anterior
+        </button>
+        <p className="text-[11px] text-gray-muted">
+          Página <span className="font-black text-navy">{page + 1}</span> de <span className="font-black text-navy">{totalPages}</span>
+        </p>
+        <button
+          onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+          disabled={page >= totalPages - 1}
+          className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-border bg-white text-xs font-semibold text-gray-muted hover:text-navy hover:border-navy/30 disabled:opacity-30 disabled:pointer-events-none transition-all"
+        >
+          Seguinte <ChevronRight size={13} />
+        </button>
       </div>
 
       {/* ── Modais ────────────────────────────────────────────────────────── */}

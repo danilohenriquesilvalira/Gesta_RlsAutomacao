@@ -62,9 +62,10 @@ export default function ApontamentosPage() {
   // ── Dados ──────────────────────────────────────────────────────────────────
 
   const { data: apontamentos = [], isLoading } = useApontamentos(
-    profile ? { tecnicoId: profile.id } : undefined
+    profile ? { tecnicoId: profile.id } : undefined,
+    { enabled: !!profile?.id }
   );
-  const { data: obras = [] } = useObras('ativa');
+  const { data: obras = [] } = useObras('ativa', profile?.id, { enabled: !!profile?.id });
 
   const createApt = useCreateApontamento();
   const updateApt = useUpdateApontamento();

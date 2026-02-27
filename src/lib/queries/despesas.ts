@@ -10,9 +10,10 @@ export function useDespesas(filters?: {
   tecnicoId?: string;
   obraId?: string;
   status?: DespesaStatus;
-}) {
+}, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['despesas', filters],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       const supabase = createClient();
       let query = supabase
@@ -237,9 +238,10 @@ export function useUpdateDespesaStatus() {
 
 // ── Depósitos ─────────────────────────────────────────────────────────────────
 
-export function useDepositos(tecnicoId?: string) {
+export function useDepositos(tecnicoId?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['depositos', tecnicoId],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       const supabase = createClient();
       let query = supabase
@@ -279,9 +281,12 @@ export function useCreateDeposito() {
 
 // ── Saldo ─────────────────────────────────────────────────────────────────────
 
-export function useSaldoTecnico(tecnicoId: string) {
-  const { data: depositos = [] } = useDepositos(tecnicoId);
-  const { data: despesas = [] } = useDespesas({ tecnicoId });
+export function useSaldoTecnico(tecnicoId: string | undefined) {
+  const { data: depositos = [] } = useDepositos(tecnicoId, { enabled: !!tecnicoId });
+  const { data: despesas = [] } = useDespesas(
+    tecnicoId ? { tecnicoId } : undefined,
+    { enabled: !!tecnicoId }
+  );
 
   const totalDepositado = depositos.reduce((sum, d) => sum + Number(d.valor), 0);
   const totalDespesasAprovadas = despesas

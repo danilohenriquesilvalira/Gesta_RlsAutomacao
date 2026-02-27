@@ -7,7 +7,9 @@
         "dev": "vite --host 0.0.0.0",
         "build": "tsc && vite build",
         "lint": "eslint .",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "test:seed": "npx tsx scripts/seed-test.ts",
+        "test:cleanup": "npx tsx scripts/cleanup-test.ts"
     },
     "dependencies": {
         "@hookform/resolvers": "^3.3.4",

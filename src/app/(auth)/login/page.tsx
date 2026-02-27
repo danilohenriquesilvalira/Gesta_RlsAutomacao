@@ -39,10 +39,10 @@ function Typewriter() {
   }, [text, deleting, phraseIdx]);
 
   return (
-    <div className="text-center px-6">
-      <p className="text-[38px] xl:text-[46px] font-black text-white leading-tight tracking-tight">
+    <div className="text-center px-6 max-w-[560px]">
+      <p className="text-[48px] xl:text-[58px] font-black text-white leading-tight tracking-tight">
         {text}
-        <span className="inline-block w-[3px] h-[42px] ml-2 bg-success align-middle animate-pulse rounded-full" />
+        <span className="inline-block w-[3px] h-[52px] xl:h-[64px] ml-2 bg-success align-middle animate-pulse rounded-full" />
       </p>
     </div>
   );
@@ -87,9 +87,18 @@ export default function LoginPage() {
         className="hidden lg:flex w-1/2 flex-col relative overflow-hidden"
         style={{ backgroundColor: '#0f2147' }}
       >
-        {/* Imagem subtil de fundo */}
+        {/* Padrão de pontos geométrico */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
+          }}
+        />
+
+        {/* Imagem de fundo subtil */}
+        <div
+          className="absolute inset-0 pointer-events-none"
           style={{
             backgroundImage: 'url("/RLS.png")',
             backgroundSize: 'cover',
@@ -99,21 +108,25 @@ export default function LoginPage() {
         />
 
         {/* Layout: topo → meio → baixo */}
-        <div className="relative z-10 flex flex-col items-center justify-between h-full py-14 px-8">
+        <div className="relative z-10 flex flex-col items-center justify-between h-full py-14 px-10">
 
-          {/* TOPO — Logo grande e centralizado */}
-          <div className="flex flex-col items-center gap-4">
-            <RlsLogo height={110} />
-            <p className="text-[11px] font-bold text-white/35 tracking-[0.35em] uppercase">
-              Automação Industrial
-            </p>
+          {/* TOPO — Logo com presença e tagline */}
+          <div className="flex flex-col items-center gap-3">
+            <RlsLogo height={130} />
+            <div className="flex items-center gap-2 mt-1">
+              <div className="h-px w-8 bg-white/20 rounded-full" />
+              <p className="text-[10px] font-bold text-white/35 tracking-[0.4em] uppercase">
+                Automação Industrial
+              </p>
+              <div className="h-px w-8 bg-white/20 rounded-full" />
+            </div>
           </div>
 
-          {/* CENTRO — Texto com efeito de digitação */}
+          {/* CENTRO — Texto com efeito de digitação + subtexto */}
           <Typewriter />
 
-          {/* BAIXO — Copyright centralizado */}
-          <p className="text-[12px] text-white/45 font-medium text-center">
+          {/* BAIXO — Copyright */}
+          <p className="text-[11px] text-white/35 font-medium text-center tracking-wide">
             © {new Date().getFullYear()} RLS Automação Industrial
           </p>
         </div>

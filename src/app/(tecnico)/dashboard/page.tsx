@@ -104,12 +104,18 @@ export default function TecnicoDashboardPage() {
   const [pageDesp, setPageDesp] = useState(0);
   const [pageDep, setPageDep] = useState(0);
 
-  const { data: depositos = [], isLoading: ldep } = useDepositos(profile?.id);
-  const { data: despesas = [], isLoading: ldesp } = useDespesas(profile ? { tecnicoId: profile.id } : undefined);
-  const { data: apontamentos = [], isLoading: lapt } = useApontamentos(profile ? { tecnicoId: profile.id } : undefined);
-  const { data: obras = [], isLoading: lobras } = useObras('ativa');
+  const { data: depositos = [], isLoading: ldep } = useDepositos(profile?.id, { enabled: !!profile?.id });
+  const { data: despesas = [], isLoading: ldesp } = useDespesas(
+    profile ? { tecnicoId: profile.id } : undefined,
+    { enabled: !!profile?.id }
+  );
+  const { data: apontamentos = [], isLoading: lapt } = useApontamentos(
+    profile ? { tecnicoId: profile.id } : undefined,
+    { enabled: !!profile?.id }
+  );
+  const { data: obras = [] } = useObras('ativa', profile?.id, { enabled: !!profile?.id });
 
-  const { totalDepositado, totalDespesasAprovadas, saldo } = useSaldoTecnico(profile?.id ?? '');
+  const { totalDepositado, totalDespesasAprovadas, saldo } = useSaldoTecnico(profile?.id);
 
   const totalPendente = useMemo(
     () => despesas.filter(d => d.status === 'pendente').reduce((s, d) => s + Number(d.valor), 0),
@@ -153,17 +159,15 @@ export default function TecnicoDashboardPage() {
       .map(([nome, horas]) => ({ nome, horas, pct: total > 0 ? Math.round((horas / total) * 100) : 0 }));
   }, [apontamentos]);
 
-  const obraStats = useMemo(() => {
-    const map: Record<string, { nome: string; horas: number; progresso: number }> = {};
-    apontamentos.forEach(a => {
-      if (!a.obra_id || !a.obra) return;
-      if (!map[a.obra_id]) {
-        map[a.obra_id] = { nome: a.obra.nome, horas: 0, progresso: a.obra.progresso ?? 0 };
-      }
-      map[a.obra_id].horas += a.total_horas ?? 0;
-    });
-    return Object.values(map).sort((a, b) => b.horas - a.horas).slice(0, 4);
-  }, [apontamentos]);
+  const obraStats = useMemo(() =>
+    obras.map((o) => {
+      const horas = apontamentos
+        .filter(a => a.obra_id === o.id && a.status === 'aprovado')
+        .reduce((s, a) => s + (a.total_horas ?? 0), 0);
+      return { id: o.id, nome: o.nome, horas, progresso: o.progresso ?? 0 };
+    }).sort((a, b) => b.horas - a.horas).slice(0, 4),
+    [obras, apontamentos]
+  );
 
   // ── Work Charts Data ───────────────────────────────────────────────────────
   const workPulseData = useMemo(() => [
@@ -675,15 +679,15 @@ export default function TecnicoDashboardPage() {
               </div>
               <div className="flex items-center gap-1.5 bg-navy/5 rounded-lg px-2.5 py-1.5">
                 <Building2 size={10} className="text-navy" />
-                <span className="text-[10px] font-black text-navy">{obraStats.length || obras.length} obras</span>
+                <span className="text-[10px] font-black text-navy">{obras.length} ativas</span>
               </div>
             </div>
 
             {/* Lista de obras com progress bars */}
             {obraStats.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-16 text-center">
-                <p className="text-xs font-semibold text-navy">Sem apontamentos em obras</p>
-                <p className="text-[10px] text-gray-muted mt-0.5">Registe horas para ver o progresso</p>
+                <p className="text-xs font-semibold text-navy">Nenhuma obra ativa no momento</p>
+                <p className="text-[10px] text-gray-muted mt-0.5">As obras ativas aparecerão aqui</p>
               </div>
             ) : (
               <div className="space-y-3.5">
@@ -723,7 +727,7 @@ export default function TecnicoDashboardPage() {
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
               <div className="flex items-center gap-1.5">
                 <TrendingUp size={11} className="text-emerald-500" />
-                <span className="text-[10px] font-bold text-navy">{obras.length} ativas na empresa</span>
+                <span className="text-[10px] font-bold text-navy">{obras.length} {obras.length === 1 ? 'obra ativa' : 'obras ativas'}</span>
               </div>
               <span className="text-[10px] font-black text-gray-muted">
                 {apontamentos.length} registos

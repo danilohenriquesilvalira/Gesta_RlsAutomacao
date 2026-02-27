@@ -4,16 +4,19 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { Obra, ObraStatus } from '@/types';
 
-export function useObras(status?: ObraStatus) {
+export function useObras(status?: ObraStatus, createdBy?: string, options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: ['obras', status],
+    queryKey: ['obras', status, createdBy ?? null],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       const supabase = createClient();
       let query = supabase
         .from('obras')
         .select('*, executante:profiles!created_by(full_name)')
+        .not('created_by', 'is', null)   // exclui registos sem responsável
         .order('created_at', { ascending: false });
-      if (status) query = query.eq('status', status);
+      if (status)    query = query.eq('status', status);
+      if (createdBy) query = query.eq('created_by', createdBy);
       const { data, error } = await query;
       if (error) throw error;
       return data as Obra[];
