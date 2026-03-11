@@ -1,0 +1,14 @@
+# DNS para rede ZeroTier (10.229.x.x)
+gestao.rls {
+    hosts {
+        10.229.170.165 gestao.rls
+        10.229.170.165 www.gestao.rls
+        fallthrough
+    }
+    log
+}
+. {
+    forward . 8.8.8.8 8.8.4.4
+    cache 300
+    errors
+}

@@ -1,16 +1,30 @@
 version: '3.9'
 
 services:
-  # ── DNS Server ───────────────────────────────────────────────
-  dns:
+  # ── DNS LAN (empresa) ─────────────────────────────────────────
+  # gestao.rls → 192.168.1.72  (quando ligado ao WiFi da empresa)
+  dns-lan:
     image: coredns/coredns:latest
-    container_name: gestao_dns
+    container_name: gestao_dns_lan
     restart: unless-stopped
     ports:
-      - "0.0.0.0:53:53/udp"
-      - "0.0.0.0:53:53/tcp"
+      - "192.168.1.72:53:53/udp"
+      - "192.168.1.72:53:53/tcp"
     volumes:
-      - ./dns/Corefile:/Corefile:ro
+      - ./dns/Corefile-lan:/Corefile:ro
+    command: -conf /Corefile
+
+  # ── DNS ZeroTier (fora da empresa) ────────────────────────────
+  # gestao.rls → 10.229.170.165  (quando ligado via ZeroTier)
+  dns-zt:
+    image: coredns/coredns:latest
+    container_name: gestao_dns_zt
+    restart: unless-stopped
+    ports:
+      - "10.229.170.165:53:53/udp"
+      - "10.229.170.165:53:53/tcp"
+    volumes:
+      - ./dns/Corefile-zt:/Corefile:ro
     command: -conf /Corefile
 
   # ── PostgreSQL Database ──────────────────────────────────────
