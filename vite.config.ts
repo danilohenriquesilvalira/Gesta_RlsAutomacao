@@ -13,7 +13,7 @@ export default defineConfig({
                 name: 'FieldSync — Timesheet',
                 short_name: 'FieldSync',
                 description: 'Sistema de apontamento de horas para técnicos de campo',
-                theme_color: '#0f2147',
+                theme_color: '#1A202C',
                 background_color: '#ffffff',
                 display: 'standalone',
                 icons: [
@@ -35,5 +35,8 @@ export default defineConfig({
         alias: {
             '@': path.resolve(__dirname, './src'),
         },
+    },
+    server: {
+        allowedHosts: true,
     },
 })

@@ -1,0 +1,49 @@
+{
+  "packageId": "com.rlsautomacao.fieldsync",
+  "host": "garlic-beds-ware-eyed.trycloudflare.com",
+  "name": "RLS Automação",
+  "launcherName": "RLS",
+  "display": "standalone",
+  "themeColor": "#0f2147",
+  "navigationColor": "#0f2147",
+  "navigationColorDark": "#0f2147",
+  "navigationDividerColor": "#0f2147",
+  "navigationDividerColorDark": "#0f2147",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://garlic-beds-ware-eyed.trycloudflare.com/icons/icon-512.png",
+  "maskableIconUrl": "https://garlic-beds-ware-eyed.trycloudflare.com/icons/icon-512.png",
+  "monochromeIconUrl": "https://garlic-beds-ware-eyed.trycloudflare.com/icons/icon-512.png",
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://garlic-beds-ware-eyed.trycloudflare.com/manifest.json",
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://garlic-beds-ware-eyed.trycloudflare.com/",
+  "minSdkVersion": 19,
+  "orientation": "default",
+  "fingerprints": [],
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isTrustedWebActivity": true,
+  "serviceAccountJsonFile": "",
+  "signingKey": {
+    "path": "android.keystore",
+    "alias": "android"
+  },
+  "signingKeyPassword": "android",
+  "signingStorePassword": "android",
+  "rotatedSigningKey": {
+    "path": "",
+    "alias": ""
+  },
+  "rotatedSigningKeyPassword": "",
+  "rotatedSigningStorePassword": "",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "sdkVersion": "v0.7.2",
+  "features": {}
+}

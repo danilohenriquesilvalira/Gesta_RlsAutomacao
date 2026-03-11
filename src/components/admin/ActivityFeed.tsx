@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import React from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -25,7 +25,7 @@ function getActivityIcon(type: string) {
             height="14"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#2563eb"
+            stroke="#3D5AFE"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -48,7 +48,7 @@ function getActivityIcon(type: string) {
             height="14"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#10b981"
+            stroke="#00E676"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -89,7 +89,7 @@ function getActivityIcon(type: string) {
             height="14"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#10b981"
+            stroke="#00E676"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -107,7 +107,7 @@ function getActivityIcon(type: string) {
             height="14"
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#ef4444"
+            stroke="#FF1744"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"

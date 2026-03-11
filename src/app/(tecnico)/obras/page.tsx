@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useObras, useCreateObra, useUpdateObra, useDeleteObra } from '@/lib/queries/obras';
@@ -797,7 +797,7 @@ function ObraCard({ obra, isUpdating, onEdit, onFinalize, onReactivate, onDelete
   }, [obra.progresso]);
 
   const isDirty = localProg !== (obra.progresso ?? 0);
-  const progColor = localProg >= 80 ? '#10b981' : localProg >= 50 ? '#2563eb' : '#f59e0b';
+  const progColor = localProg >= 80 ? '#00E676' : localProg >= 50 ? '#3D5AFE' : '#FF9100';
 
   const mapsUrl =
     obra.lat && obra.lng

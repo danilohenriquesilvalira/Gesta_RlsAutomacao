@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useMemo } from 'react';
 import { useTecnicosComHoras, useToggleTecnicoAtivo, useDeleteFuncionario } from '@/lib/queries/tecnicos';
@@ -288,7 +288,7 @@ export default function TecnicosPage() {
               const isActive = tec.is_active; // estado real da BD
               const hasHours = tec.totalHoras > 0;
               const barColor = !isActive ? 'bg-gray-300' : isOvertime ? 'bg-warning' : hasHours ? 'bg-success' : 'bg-accent-blue/40';
-              const progColor = !isActive ? '#e2e8f0' : isOvertime ? '#f59e0b' : hasHours ? '#10b981' : '#93c5fd';
+              const progColor = !isActive ? '#e2e8f0' : isOvertime ? '#FF9100' : hasHours ? '#00E676' : '#8B9FF4';
 
               return (
                 <div

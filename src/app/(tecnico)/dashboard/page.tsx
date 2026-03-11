@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -171,9 +171,9 @@ export default function TecnicoDashboardPage() {
 
   // ── Work Charts Data ───────────────────────────────────────────────────────
   const workPulseData = useMemo(() => [
-    { name: 'Aprovados', value: aptAprovados, color: '#10b981' },
-    { name: 'Pendentes', value: aptPendentes, color: '#f59e0b' },
-    { name: 'Rejeitados', value: aptRejeitados, color: '#ef4444' },
+    { name: 'Aprovados', value: aptAprovados, color: '#00E676' },
+    { name: 'Pendentes', value: aptPendentes, color: '#FF9100' },
+    { name: 'Rejeitados', value: aptRejeitados, color: '#FF1744' },
   ].filter(d => d.value > 0), [aptAprovados, aptPendentes, aptRejeitados]);
 
 
@@ -458,15 +458,15 @@ export default function TecnicoDashboardPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="colDep" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.1} /><stop offset="95%" stopColor="#10b981" stopOpacity={0} /></linearGradient>
-                      <linearGradient id="colGas" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.1} /><stop offset="95%" stopColor="#ef4444" stopOpacity={0} /></linearGradient>
+                      <linearGradient id="colDep" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#00E676" stopOpacity={0.1} /><stop offset="95%" stopColor="#00E676" stopOpacity={0} /></linearGradient>
+                      <linearGradient id="colGas" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#FF1744" stopOpacity={0.1} /><stop offset="95%" stopColor="#FF1744" stopOpacity={0} /></linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} dy={10} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} />
                     <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#e2e8f0', strokeWidth: 1 }} />
-                    <Area type="monotone" dataKey="dep" name="Recebido" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colDep)" activeDot={{ r: 4, strokeWidth: 0 }} />
-                    <Area type="monotone" dataKey="gas" name="Gasto" stroke="#ef4444" strokeWidth={2.5} fillOpacity={1} fill="url(#colGas)" activeDot={{ r: 4, strokeWidth: 0 }} />
+                    <Area type="monotone" dataKey="dep" name="Recebido" stroke="#00E676" strokeWidth={2.5} fillOpacity={1} fill="url(#colDep)" activeDot={{ r: 4, strokeWidth: 0 }} />
+                    <Area type="monotone" dataKey="gas" name="Gasto" stroke="#FF1744" strokeWidth={2.5} fillOpacity={1} fill="url(#colGas)" activeDot={{ r: 4, strokeWidth: 0 }} />
                   </AreaChart>
                 </ResponsiveContainer>
               )}
@@ -573,7 +573,7 @@ export default function TecnicoDashboardPage() {
                       {(workPulseData.length ? workPulseData : [{ color: '#f1f5f9' }]).map((entry, i) => (
                         <Cell key={i} fill={entry.color} />
                       ))}
-                      <Label value={apontamentos.length} position="center" style={{ fontSize: 15, fontWeight: 900, fill: '#0f2147' }} />
+                      <Label value={apontamentos.length} position="center" style={{ fontSize: 15, fontWeight: 900, fill: '#111827' }} />
                     </Pie>
                     <Tooltip contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: 11 }} />
                   </PieChart>
@@ -613,7 +613,7 @@ export default function TecnicoDashboardPage() {
               ) : (
                 <div className="flex-1 flex flex-col justify-center space-y-2.5">
                   {servicoStats.map((s, i) => {
-                    const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6'];
+                    const COLORS = ['#3D5AFE', '#00E676', '#FF9100', '#8b5cf6'];
                     return (
                       <div key={i}>
                         <div className="flex items-center justify-between mb-1">
@@ -699,7 +699,7 @@ export default function TecnicoDashboardPage() {
                         <span className="text-[9px] font-bold text-gray-400">{fmtH(obra.horas)}</span>
                         <span
                           className="text-[9px] font-black tabular-nums"
-                          style={{ color: obra.progresso >= 80 ? '#10b981' : obra.progresso >= 50 ? '#2563eb' : '#f59e0b' }}
+                          style={{ color: obra.progresso >= 80 ? '#00E676' : obra.progresso >= 50 ? '#3D5AFE' : '#FF9100' }}
                         >
                           {obra.progresso}%
                         </span>
@@ -711,10 +711,10 @@ export default function TecnicoDashboardPage() {
                         style={{
                           width: `${obra.progresso}%`,
                           background: obra.progresso >= 80
-                            ? 'linear-gradient(to right, #059669, #10b981)'
+                            ? 'linear-gradient(to right, #00C462, #00E676)'
                             : obra.progresso >= 50
                             ? 'linear-gradient(to right, #1d4ed8, #3b82f6)'
-                            : 'linear-gradient(to right, #d97706, #f59e0b)',
+                            : 'linear-gradient(to right, #CC7400, #FF9100)',
                         }}
                       />
                     </div>

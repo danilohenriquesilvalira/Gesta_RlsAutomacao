@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -85,7 +85,7 @@ export default function LoginPage() {
       {/* ══ PAINEL ESQUERDO — 50% ═══════════════════════════════════════════ */}
       <div
         className="hidden lg:flex w-1/2 flex-col relative overflow-hidden"
-        style={{ backgroundColor: '#0f2147' }}
+        style={{ backgroundColor: '#111827' }}
       >
         {/* Padrão de pontos geométrico */}
         <div
@@ -194,7 +194,7 @@ export default function LoginPage() {
                 type="submit"
                 disabled={loading}
                 className="w-full h-11 rounded-xl font-bold text-[13px] text-white tracking-wide transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
-                style={{ backgroundColor: '#0f2147' }}
+                style={{ backgroundColor: '#111827' }}
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
