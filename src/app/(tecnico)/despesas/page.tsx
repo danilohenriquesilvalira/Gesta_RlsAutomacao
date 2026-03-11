@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useDespesas, useCreateDespesa, useUpdateDespesa, useDeleteDespesa } from '@/lib/queries/despesas';
 import { useRecibosPagamento } from '@/lib/queries/recibos-pagamento';
-import { useObras } from '@/lib/queries/obras';
+import { useMinhasObras } from '@/lib/queries/obras';
 import { DespesaModal } from '@/components/tecnico/DespesaModal';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import {
@@ -73,8 +73,8 @@ export default function MinhasDespesasPage() {
   const { data: meusRecibos = [], isLoading: lRecibos } = useRecibosPagamento(
     profile?.id ?? ''
   );
-  // Apenas obras deste técnico (created_by = profile.id) para o dropdown do modal
-  const { data: obras = [] } = useObras(undefined, profile?.id, { enabled: !!profile?.id });
+  // Obras onde este técnico está envolvido (criou OU é participante)
+  const { data: obras = [] } = useMinhasObras(profile?.id ?? '', { enabled: !!profile?.id });
   const createDespesa = useCreateDespesa();
   const updateDespesa = useUpdateDespesa();
   const deleteDespesaMutation = useDeleteDespesa();
@@ -134,6 +134,7 @@ export default function MinhasDespesasPage() {
     data_despesa: string;
     descricao?: string;
     ficheiros: ReciboFile[];
+    participante_ids?: string[];
   }) {
     if (!profile) return;
     try {
@@ -145,6 +146,7 @@ export default function MinhasDespesasPage() {
         data_despesa: data.data_despesa,
         descricao: data.descricao,
         ficheiros: data.ficheiros,
+        participante_ids: data.participante_ids,
       });
       toast.success('Despesa registada com sucesso!');
       setModalOpen(false);
@@ -160,6 +162,7 @@ export default function MinhasDespesasPage() {
     data_despesa: string;
     descricao?: string;
     ficheiros: ReciboFile[];
+    participante_ids?: string[];
   }) {
     if (!profile || !editDespesa) return;
     try {
@@ -172,6 +175,7 @@ export default function MinhasDespesasPage() {
         data_despesa: data.data_despesa,
         descricao: data.descricao ?? null,
         novos_ficheiros: data.ficheiros,
+        participante_ids: data.participante_ids,
       });
       toast.success('Despesa actualizada!');
       setEditDespesa(null);

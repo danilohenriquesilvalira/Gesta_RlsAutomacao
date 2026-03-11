@@ -65,7 +65,7 @@ function TipoHoraPill({ tipo }: { tipo: string }) {
 }
 
 /* ── tipos ────────────────────────────────────────────────────── */
-type GrupoTecnico = {
+export type GrupoTecnico = {
   tecnicoId: string;
   tecnico: Apontamento['tecnico'];
   apts: Apontamento[];
@@ -78,7 +78,7 @@ type GrupoTecnico = {
 type ModalTab = 'pendentes' | 'aprovados' | 'rejeitados' | 'todos';
 
 /* ── modal de detalhe do técnico ─────────────────────────────── */
-function TecnicoModal({
+export function TecnicoModal({
   grupo,
   onClose,
   onAprovar,
@@ -154,7 +154,8 @@ function TecnicoModal({
     <>
       {/* Mobile: full screen — Desktop: modal centrado */}
       <DialogContent
-        className="fixed inset-0 translate-x-0 translate-y-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:translate-x-[-50%] sm:translate-y-[-50%] w-full sm:max-w-2xl h-full sm:h-[72vh] p-0 gap-0 flex flex-col overflow-hidden border-0 rounded-none sm:shadow-2xl sm:border sm:border-gray-100 sm:rounded-2xl"
+        showCloseButton={false}
+        className="w-[calc(100%-2rem)] max-w-2xl p-0 gap-0 flex flex-col overflow-hidden rounded-2xl border border-gray-100 shadow-2xl" style={{ height: 'min(88vh, 680px)' }}
       >
         {/* wrapper relativo para o painel de detalhe funcionar */}
         <div className="relative flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -200,13 +201,13 @@ function TecnicoModal({
           </div>
 
           {/* Tab bar — oculta quando está no detalhe */}
-          <div className={cn('flex gap-0 px-4 border-t border-gray-100 overflow-x-auto', viewApt ? 'hidden' : '')}>
+          <div className={cn('flex gap-0 border-t border-gray-100', viewApt ? 'hidden' : '')}>
             {tabs.filter(t => t.count > 0 || t.key === 'todos').map(t => (
               <button
                 key={t.key}
                 onClick={() => { setTab(t.key); setSelectedIds([]); }}
                 className={cn(
-                  'relative flex items-center gap-1.5 h-10 px-3 sm:px-4 text-[12px] font-bold transition-colors whitespace-nowrap shrink-0',
+                  'relative flex-1 flex items-center justify-center gap-1.5 h-10 px-1 text-[11px] font-bold transition-colors min-w-0',
                   tab === t.key
                     ? t.key === 'pendentes' ? 'text-amber-600' : 'text-navy'
                     : 'text-gray-400 hover:text-gray-700'
@@ -232,7 +233,7 @@ function TecnicoModal({
               </button>
             ))}
             {/* Botão filtro no lado direito da tab bar */}
-            <div className="ml-auto flex items-center pr-1">
+            <div className="shrink-0 flex items-center px-2">
               <button
                 onClick={() => setShowFilters(v => !v)}
                 className={cn(
@@ -349,28 +350,25 @@ function TecnicoModal({
                     key={apt.id}
                     onClick={() => setViewApt(apt)}
                     className={cn(
-                      'relative flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-gray-bg/30',
-                      isSelected && 'bg-blue-50/40',
-                      isPending && !isSelected && 'bg-amber-50/20'
+                      'group relative flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors hover:bg-gray-50',
+                      isPending
+                        ? 'border-l-2 border-l-amber-400 hover:bg-amber-50/20'
+                        : '',
+                      isSelected && 'bg-blue-50/40 border-l-2 border-l-blue-400'
                     )}
                   >
-                    {/* Faixa lateral pendente */}
-                    {isPending && <span className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r-full bg-amber-400" />}
-
-                    {/* Checkbox */}
-                    <div className="shrink-0" onClick={e => e.stopPropagation()}>
-                      {isPending ? (
+                    {/* Checkbox — só pendentes */}
+                    {isPending && (
+                      <div className="shrink-0" onClick={e => e.stopPropagation()}>
                         <input
                           type="checkbox" checked={isSelected} onChange={() => toggleSelect(apt.id)}
                           className="w-3.5 h-3.5 rounded border-gray-300 cursor-pointer"
                         />
-                      ) : (
-                        <span className="block w-3.5" />
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     {/* Date badge */}
-                    <div className="shrink-0 w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex flex-col items-center justify-center">
+                    <div className="shrink-0 w-11 h-11 rounded-xl bg-gray-50 border border-gray-100 flex flex-col items-center justify-center">
                       <span className="text-[12px] font-black text-navy tabular-nums leading-tight">
                         {fmtDate(apt.data_apontamento).split(' ')[0]}
                       </span>
@@ -379,9 +377,9 @@ function TecnicoModal({
                       </span>
                     </div>
 
-                    {/* Obra + Serviço — ocupa o espaço disponível */}
+                    {/* Obra + Serviço — ocupa o espaço restante */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         <p className="text-[12px] font-bold text-navy truncate leading-tight">
                           {apt.obra?.nome || 'Oficina'}
                         </p>
@@ -394,55 +392,56 @@ function TecnicoModal({
                       <p className="text-[10px] text-gray-400 truncate mt-0.5 leading-tight">{apt.tipo_servico}</p>
                     </div>
 
-                    {/* Período — centro */}
-                    <div className="shrink-0 text-center">
-                      <p className="font-mono text-[10px] text-gray-500 tabular-nums whitespace-nowrap">
+                    {/* Horas — largura fixa, alinhado à direita */}
+                    <div className="shrink-0 flex flex-col items-end gap-0.5">
+                      <span className="text-[12px] font-black text-navy tabular-nums">{fmtH(apt.total_horas ?? 0)}</span>
+                      <span className="font-mono text-[9px] text-gray-400 tabular-nums whitespace-nowrap">
                         {fmtTime(apt.hora_entrada)}–{fmtTime(apt.hora_saida)}
-                      </p>
+                      </span>
                     </div>
 
-                    {/* Horas */}
-                    <div className="shrink-0 w-9 text-right">
-                      <span className="text-[13px] font-black text-navy tabular-nums">{fmtH(apt.total_horas ?? 0)}</span>
-                    </div>
-
-                    {/* Status + botões */}
-                    <div className="shrink-0 flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                      <StatusPill status={apt.status} nota={apt.nota_rejeicao} />
+                    {/* Ações — largura fixa, centradas */}
+                    <div className="shrink-0 w-[68px] flex items-center justify-center gap-1.5" onClick={e => e.stopPropagation()}>
                       {fotoUrls.length > 0 && (
                         <button
                           onClick={() => onViewFotos(fotoUrls)}
                           title={`${fotoUrls.length} foto(s)`}
-                          className="relative w-7 h-7 rounded-full border border-gray-border text-gray-muted hover:border-accent-blue hover:text-accent-blue hover:bg-accent-blue/8 flex items-center justify-center transition-all"
+                          className="relative w-8 h-8 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 hover:border-navy hover:text-navy hover:bg-navy/5 flex items-center justify-center transition-all shadow-sm"
                         >
-                          <Camera size={12} />
+                          <Camera size={13} />
                           {fotoUrls.length > 1 && (
-                            <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-accent-blue text-white text-[7px] font-black flex items-center justify-center leading-none">
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-navy text-white text-[7px] font-black flex items-center justify-center leading-none">
                               {fotoUrls.length}
                             </span>
                           )}
                         </button>
                       )}
-                      {isPending && (
+                      {isPending ? (
                         <>
                           <button
                             onClick={() => onAprovar(apt.id)}
                             disabled={busy}
                             title="Aprovar"
-                            className="w-7 h-7 rounded-full border border-gray-border text-gray-muted hover:border-success hover:text-success hover:bg-success/8 disabled:opacity-40 flex items-center justify-center transition-all"
+                            className="w-8 h-8 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 hover:bg-navy hover:border-navy hover:text-white disabled:opacity-40 flex items-center justify-center transition-all shadow-sm"
                           >
-                            <CheckCircle2 size={13} strokeWidth={2} />
+                            <CheckCircle2 size={15} strokeWidth={2} />
                           </button>
                           <button
                             onClick={() => onRejeitar([apt.id])}
                             disabled={busy}
                             title="Rejeitar"
-                            className="w-7 h-7 rounded-full border border-gray-border text-gray-muted hover:border-error hover:text-error hover:bg-error/8 disabled:opacity-40 flex items-center justify-center transition-all"
+                            className="w-8 h-8 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 hover:bg-red-500 hover:border-red-500 hover:text-white disabled:opacity-40 flex items-center justify-center transition-all shadow-sm"
                           >
-                            <XCircle size={13} strokeWidth={2} />
+                            <XCircle size={15} strokeWidth={2} />
                           </button>
                         </>
-                      )}
+                      ) : apt.status === 'aprovado' ? (
+                        <CheckCircle2 size={18} className="text-emerald-400" strokeWidth={2} />
+                      ) : apt.status === 'rejeitado' ? (
+                        <span title={apt.nota_rejeicao ?? undefined} className="cursor-help">
+                          <XCircle size={18} className="text-red-300" strokeWidth={2} />
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -575,7 +574,7 @@ function TecnicoModal({
 
 /* ══ PÁGINA PRINCIPAL ════════════════════════════════════════════ */
 export default function ApontamentosPage() {
-  const [selectedGrupo, setSelectedGrupo] = useState<GrupoTecnico | null>(null);
+  const [selectedTecnicoId, setSelectedTecnicoId] = useState<string | null>(null);
   const [fotoModal, setFotoModal] = useState<string[] | null>(null);
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; ids: string[]; nota: string }>({
     open: false, ids: [], nota: '',
@@ -616,6 +615,11 @@ export default function ApontamentosPage() {
     horasAprovadas: apontamentos.filter(a => a.status === 'aprovado').reduce((s, a) => s + (a.total_horas ?? 0), 0),
     tecnicos: grupos.length,
   }), [apontamentos, grupos]);
+
+  const selectedGrupo = useMemo(
+    () => grupos.find(g => g.tecnicoId === selectedTecnicoId) ?? null,
+    [grupos, selectedTecnicoId]
+  );
 
   /* ── handlers ───────────────────────────────────────────────── */
   async function handleAprovar(id: string) {
@@ -719,7 +723,7 @@ export default function ApontamentosPage() {
           {!isLoading && grupos.map(grupo => (
             <div
               key={grupo.tecnicoId}
-              onClick={() => setSelectedGrupo(grupo)}
+              onClick={() => setSelectedTecnicoId(grupo.tecnicoId)}
               className={cn(
                 'group flex items-center gap-4 px-5 py-4 border-b border-gray-border/40 cursor-pointer hover:bg-gray-bg/50 transition-colors',
                 grupo.pendentes > 0 && 'border-l-[3px] border-l-amber-400 pl-[17px]'
@@ -777,11 +781,11 @@ export default function ApontamentosPage() {
       </div>
 
       {/* ── Modal de detalhe do técnico ────────────────────────── */}
-      <Dialog open={!!selectedGrupo} onOpenChange={o => !o && setSelectedGrupo(null)}>
+      <Dialog open={!!selectedGrupo} onOpenChange={o => !o && setSelectedTecnicoId(null)}>
         {selectedGrupo && (
           <TecnicoModal
-            grupo={grupos.find(g => g.tecnicoId === selectedGrupo.tecnicoId) ?? selectedGrupo}
-            onClose={() => setSelectedGrupo(null)}
+            grupo={selectedGrupo}
+            onClose={() => setSelectedTecnicoId(null)}
             onAprovar={handleAprovar}
             onRejeitar={handleRejeitar}
             onViewFotos={setFotoModal}

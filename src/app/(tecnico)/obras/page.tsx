@@ -1,7 +1,8 @@
 ﻿'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useObras, useCreateObra, useUpdateObra, useDeleteObra } from '@/lib/queries/obras';
+import { useObras, useMinhasObras, useCreateObra, useUpdateObra, useDeleteObra } from '@/lib/queries/obras';
+import { useTecnicos } from '@/lib/queries/tecnicos';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -18,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import type { Obra, ObraStatus } from '@/types';
 import { toast } from 'sonner';
-import { Plus, ChevronLeft, ChevronRight, Building2, CheckCircle2, Clock, Archive } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Building2, CheckCircle2, Clock, Archive, Users, X } from 'lucide-react';
 
 // ─── Dialog style constants ────────────────────────────────────────────────────
 const sDlg     = 'flex flex-col w-[92vw] sm:w-full sm:max-w-lg max-h-[85vh] sm:max-h-[90vh] p-0 gap-0 overflow-hidden rounded-2xl border-slate-200 shadow-xl bg-white';
@@ -88,6 +89,7 @@ type FormData = {
   localizacao: string;
   lat: number | null;
   lng: number | null;
+  tecnicoIds: string[];
 };
 
 const emptyForm: FormData = {
@@ -98,6 +100,7 @@ const emptyForm: FormData = {
   localizacao: '',
   lat: null,
   lng: null,
+  tecnicoIds: [],
 };
 
 // ── LocationPicker ─────────────────────────────────────────────────────────────
@@ -292,7 +295,8 @@ function LocationPicker({ localizacao, lat, lng, onChange }: LocationPickerProps
 
 export default function MinhasObrasPage() {
   const { profile } = useAuth();
-  const { data: obras = [], isLoading } = useObras(undefined, profile?.id, { enabled: !!profile?.id });
+  const { data: obras = [], isLoading } = useMinhasObras(profile?.id ?? '', { enabled: !!profile?.id });
+  const { data: todosTecnicos = [] } = useTecnicos();
   const createObra = useCreateObra();
   const updateObra = useUpdateObra();
   const deleteObra = useDeleteObra();
@@ -362,6 +366,7 @@ export default function MinhasObrasPage() {
       localizacao: obra.localizacao ?? '',
       lat: obra.lat ?? null,
       lng: obra.lng ?? null,
+      tecnicoIds: obra.obra_tecnicos?.map((ot) => ot.tecnico.id) ?? [],
     });
     setErrors({});
     setModalOpen(true);
@@ -380,6 +385,7 @@ export default function MinhasObrasPage() {
           localizacao: form.localizacao || null,
           lat: form.lat,
           lng: form.lng,
+          tecnico_ids: form.tecnicoIds,
         });
         toast.success('Obra atualizada!');
       } else {
@@ -391,6 +397,7 @@ export default function MinhasObrasPage() {
           localizacao: form.localizacao || undefined,
           lat: form.lat ?? undefined,
           lng: form.lng ?? undefined,
+          tecnico_ids: form.tecnicoIds,
         });
         toast.success(`Obra "${nova.nome}" criada!`);
       }
@@ -702,6 +709,65 @@ export default function MinhasObrasPage() {
               />
             </div>
 
+            {/* Técnicos Envolvidos */}
+            {todosTecnicos.filter((t) => t.id !== profile?.id && t.is_active).length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <DlgLbl>Técnicos Envolvidos (opcional)</DlgLbl>
+                  {form.tecnicoIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, tecnicoIds: [] }))}
+                      className="text-[10px] text-red-400 hover:text-red-600 font-medium"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 divide-y divide-slate-100 overflow-hidden">
+                  {todosTecnicos
+                    .filter((t) => t.id !== profile?.id && t.is_active)
+                    .map((t) => {
+                      const checked = form.tecnicoIds.includes(t.id);
+                      return (
+                        <label
+                          key={t.id}
+                          className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors select-none ${checked ? 'bg-navy/5' : 'hover:bg-slate-100'}`}
+                        >
+                          <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${checked ? 'bg-navy border-navy' : 'border-slate-300 bg-white'}`}>
+                            {checked && (
+                              <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M2 6l3 3 5-5" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className={`text-sm font-medium ${checked ? 'text-navy' : 'text-slate-600'}`}>{t.full_name}</span>
+                          <input
+                            type="checkbox"
+                            className="sr-only"
+                            checked={checked}
+                            onChange={() =>
+                              setForm((p) => ({
+                                ...p,
+                                tecnicoIds: checked
+                                  ? p.tecnicoIds.filter((id) => id !== t.id)
+                                  : [...p.tecnicoIds, t.id],
+                              }))
+                            }
+                          />
+                        </label>
+                      );
+                    })}
+                </div>
+                <p className="text-[10px] text-slate-400 px-0.5 mt-1">
+                  Técnicos que estão nesta obra contigo.
+                  {form.tecnicoIds.length > 0 && (
+                    <span className="ml-1 font-semibold text-navy">{form.tecnicoIds.length} selecionado{form.tecnicoIds.length > 1 ? 's' : ''}.</span>
+                  )}
+                </p>
+              </div>
+            )}
+
             {/* Estado — só na edição */}
             {editingObra && (
               <div>
@@ -886,6 +952,20 @@ function ObraCard({ obra, isUpdating, onEdit, onFinalize, onReactivate, onDelete
                 {isOverdue && ` — ${Math.abs(daysLeft!)}d atraso`}
                 {isUrgent && ` — ${daysLeft}d restantes`}
               </span>
+            </div>
+          )}
+
+          {/* Técnicos envolvidos */}
+          {obra.obra_tecnicos && obra.obra_tecnicos.length > 0 && (
+            <div className="flex items-center gap-2 pt-0.5">
+              <Users size={11} className="shrink-0 text-gray-muted" />
+              <div className="flex flex-wrap gap-1">
+                {obra.obra_tecnicos.map((ot) => (
+                  <span key={ot.tecnico.id} className="px-1.5 py-0.5 rounded-full bg-navy/8 border border-navy/15 text-[10px] font-medium text-navy/70">
+                    {ot.tecnico.full_name.split(' ')[0]}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>

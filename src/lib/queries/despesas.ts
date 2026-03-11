@@ -18,7 +18,7 @@ export function useDespesas(filters?: {
       const supabase = createClient();
       let query = supabase
         .from('despesas')
-        .select('*, tecnico:profiles!tecnico_id(*), obra:obras!obra_id(*), recibos:recibos_despesas(*)')
+        .select('*, tecnico:profiles!tecnico_id(*), obra:obras!obra_id(*), recibos:recibos_despesas(*), despesa_participantes(tecnico:profiles!tecnico_id(id,full_name,avatar_url))')
         .order('data_despesa', { ascending: false })
         .order('created_at', { ascending: false });
 
@@ -45,9 +45,10 @@ export function useCreateDespesa() {
       valor: number;
       data_despesa: string;
       ficheiros?: Array<{ base64: string; tipo: 'imagem' | 'pdf'; nome: string }>;
+      participante_ids?: string[];
     }) => {
       const supabase = createClient();
-      const { ficheiros, ...despesaData } = data;
+      const { ficheiros, participante_ids, ...despesaData } = data;
 
       const { data: inserted, error } = await supabase
         .from('despesas')
@@ -112,6 +113,13 @@ export function useCreateDespesa() {
         }
       }
 
+      // Insert participantes
+      if (participante_ids?.length && inserted) {
+        const rows = participante_ids.map((tid) => ({ despesa_id: inserted.id, tecnico_id: tid }));
+        const { error: errP } = await supabase.from('despesa_participantes').insert(rows);
+        if (errP) throw errP;
+      }
+
       return inserted;
     },
     onSuccess: () => {
@@ -133,9 +141,10 @@ export function useUpdateDespesa() {
       valor: number;
       data_despesa: string;
       novos_ficheiros?: Array<{ base64: string; tipo: 'imagem' | 'pdf'; nome: string }>;
+      participante_ids?: string[];
     }) => {
       const supabase = createClient();
-      const { id, novos_ficheiros, tecnico_id, ...updateData } = data;
+      const { id, novos_ficheiros, tecnico_id, participante_ids, ...updateData } = data;
 
       const { error } = await supabase
         .from('despesas')
@@ -176,6 +185,16 @@ export function useUpdateDespesa() {
             url: urlData.publicUrl,
             tipo_ficheiro: ficheiro.tipo,
           });
+        }
+      }
+
+      // Atualiza participantes se fornecidos
+      if (participante_ids !== undefined) {
+        await supabase.from('despesa_participantes').delete().eq('despesa_id', id);
+        if (participante_ids.length > 0) {
+          const rows = participante_ids.map((tid) => ({ despesa_id: id, tecnico_id: tid }));
+          const { error: errP } = await supabase.from('despesa_participantes').insert(rows);
+          if (errP) throw errP;
         }
       }
     },

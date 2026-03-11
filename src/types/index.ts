@@ -51,6 +51,7 @@ export interface Obra {
   created_at: string;
   // joined
   executante?: { full_name: string } | null;
+  obra_tecnicos?: Array<{ tecnico: Pick<Profile, 'id' | 'full_name' | 'avatar_url'> }>;
 }
 
 export interface Apontamento {
@@ -141,6 +142,7 @@ export interface Despesa {
   tecnico?: Profile;
   obra?: Obra;
   recibos?: ReciboDespesa[];
+  despesa_participantes?: Array<{ tecnico: Pick<Profile, 'id' | 'full_name' | 'avatar_url'> }>;
 }
 
 export interface Deposito {

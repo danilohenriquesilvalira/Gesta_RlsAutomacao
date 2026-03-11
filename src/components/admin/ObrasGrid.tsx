@@ -3,6 +3,7 @@
 import React from 'react'
 import type { Obra } from '@/types'
 import { Progress } from '@/components/ui/progress'
+import { Users } from 'lucide-react'
 
 interface ObrasGridProps {
   obras: Obra[]
@@ -180,6 +181,26 @@ export function ObrasGrid({ obras, onEdit, onDelete }: ObrasGridProps) {
                   <span className="font-medium">
                     {Number(obra.orcamento).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                   </span>
+                </div>
+              )}
+
+              {/* Técnicos envolvidos */}
+              {(obra.obra_tecnicos?.length ?? 0) > 0 && (
+                <div className="mb-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Users size={10} className="text-gray-400 shrink-0" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Técnicos</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {obra.obra_tecnicos!.map((ot) => (
+                      <span
+                        key={ot.tecnico.id}
+                        className="inline-flex items-center px-2 py-0.5 rounded-full bg-navy/8 border border-navy/15 text-[10px] font-semibold text-navy"
+                      >
+                        {ot.tecnico.full_name.split(' ')[0]}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
 

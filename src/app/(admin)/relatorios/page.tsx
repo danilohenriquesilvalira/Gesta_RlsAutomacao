@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useApontamentos } from '@/lib/queries/apontamentos';
 import { useObras } from '@/lib/queries/obras';
 import { useTecnicos } from '@/lib/queries/tecnicos';
+import { useDespesas, useDepositos } from '@/lib/queries/despesas';
 import { ApontamentosTable } from '@/components/admin/ApontamentosTable';
 import { Input } from '@/components/ui/input';
 import {
@@ -44,8 +45,10 @@ export default function RelatoriosPage() {
     dataInicio: filters.dataInicio || undefined,
     dataFim: filters.dataFim || undefined,
   });
-  const { data: obras = [] } = useObras();
-  const { data: tecnicos = [] } = useTecnicos();
+  const { data: obras = [] }     = useObras();
+  const { data: tecnicos = [] }   = useTecnicos();
+  const { data: despesas = [] }   = useDespesas();
+  const { data: depositos = [] }  = useDepositos();
 
   const hasFilters = Object.values(filters).some(Boolean);
 
@@ -86,7 +89,7 @@ export default function RelatoriosPage() {
     setExporting(true);
     try {
       const { generateExcel } = await import('@/lib/utils/exportExcel');
-      const buffer = await generateExcel(apontamentos);
+      const buffer = await generateExcel(apontamentos, despesas, depositos, tecnicos);
       const blob = new Blob([buffer as BlobPart], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });

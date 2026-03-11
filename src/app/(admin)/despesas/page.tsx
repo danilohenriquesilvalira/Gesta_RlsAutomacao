@@ -21,7 +21,7 @@ import {
   Wallet, TrendingDown, ArrowUpCircle,
   X, XCircle, PlusCircle, Receipt, FileText, ExternalLink, Trash2, Search,
   Check, CheckCheck, AlertCircle, CheckCircle2, ChevronRight,
-  Building2, Info, ArrowLeft, CalendarDays, Hash,
+  Building2, Info, ArrowLeft, CalendarDays, Hash, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Despesa, DespesaStatus, Profile } from '@/types';
@@ -58,6 +58,11 @@ function StatusPill({ status, nota }: { status: string; nota?: string | null }) 
   );
 }
 
+const TIPO_DOT: Record<string, string> = {
+  combustível: '#eab308', alimentação: '#f97316', alojamento: '#8b5cf6',
+  material: '#14b8a6', transporte: '#3D5AFE', outro: '#94a3b8',
+};
+
 function TipoPill({ tipo }: { tipo: string }) {
   const map: Record<string, { label: string; cls: string }> = {
     combustível:  { label: 'Combustível',  cls: 'bg-yellow-50 text-yellow-700 border-yellow-200'   },
@@ -76,7 +81,7 @@ function TipoPill({ tipo }: { tipo: string }) {
 }
 
 /* ── types ────────────────────────────────────────────────────── */
-type GrupoDespesas = {
+export type GrupoDespesas = {
   tecnicoId: string;
   tecnico: Despesa['tecnico'];
   desps: Despesa[];
@@ -89,7 +94,7 @@ type GrupoDespesas = {
 type ModalTab = 'pendentes' | 'aprovadas' | 'rejeitadas' | 'todas';
 
 /* ── TecnicoDespesasModal ─────────────────────────────────────── */
-function TecnicoDespesasModal({
+export function TecnicoDespesasModal({
   grupo,
   onClose,
   onAprovar,
@@ -105,6 +110,10 @@ function TecnicoDespesasModal({
   const [tab, setTab] = useState<ModalTab>(grupo.pendentes > 0 ? 'pendentes' : 'todas');
   const [viewDesp, setViewDesp] = useState<Despesa | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   const tabs: { key: ModalTab; label: string; count: number }[] = [
     { key: 'pendentes',  label: 'Pendentes',  count: grupo.pendentes   },
@@ -118,13 +127,26 @@ function TecnicoDespesasModal({
       pendentes: 'pendente', aprovadas: 'aprovada', rejeitadas: 'rejeitada', todas: null,
     };
     const st = statusMap[tab];
-    const filtered = st ? grupo.desps.filter(d => d.status === st) : grupo.desps;
-    return [...filtered].sort((a, b) => {
+    let list = st ? grupo.desps.filter(d => d.status === st) : grupo.desps;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(d =>
+        (d.obra?.nome || '').toLowerCase().includes(q) ||
+        (d.tipo_despesa || '').toLowerCase().includes(q) ||
+        (d.descricao || '').toLowerCase().includes(q)
+      );
+    }
+    if (dateFrom) list = list.filter(d => d.data_despesa >= dateFrom);
+    if (dateTo)   list = list.filter(d => d.data_despesa <= dateTo);
+    return [...list].sort((a, b) => {
       if (a.status === 'pendente' && b.status !== 'pendente') return -1;
       if (a.status !== 'pendente' && b.status === 'pendente') return 1;
       return b.data_despesa.localeCompare(a.data_despesa);
     });
-  }, [grupo.desps, tab]);
+  }, [grupo.desps, tab, search, dateFrom, dateTo]);
+
+  const hasActiveFilters = search.trim() !== '' || dateFrom !== '' || dateTo !== '';
+  function clearFilters() { setSearch(''); setDateFrom(''); setDateTo(''); }
 
   const pendingInView = filteredDesps.filter(d => d.status === 'pendente');
   const selectedSet = new Set(selectedIds);
@@ -141,7 +163,8 @@ function TecnicoDespesasModal({
   return (
     <>
       <DialogContent
-        className="fixed inset-0 translate-x-0 translate-y-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:translate-x-[-50%] sm:translate-y-[-50%] w-full sm:max-w-2xl h-full sm:h-[72vh] p-0 gap-0 flex flex-col overflow-hidden border-0 rounded-none sm:shadow-2xl sm:border sm:border-gray-100 sm:rounded-2xl"
+        showCloseButton={false}
+        className="w-[calc(100%-2rem)] max-w-2xl p-0 gap-0 flex flex-col overflow-hidden rounded-2xl border border-gray-100 shadow-2xl" style={{ height: 'min(88vh, 680px)' }}
       >
         {/* wrapper relativo para o painel de detalhe funcionar */}
         <div className="relative flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -187,13 +210,13 @@ function TecnicoDespesasModal({
           </div>
 
           {/* Tab bar */}
-          <div className={cn('flex gap-0 px-4 border-t border-gray-100 overflow-x-auto', viewDesp ? 'hidden' : '')}>
+          <div className={cn('flex gap-0 border-t border-gray-100', viewDesp ? 'hidden' : '')}>
             {tabs.filter(t => t.count > 0 || t.key === 'todas').map(t => (
               <button
                 key={t.key}
                 onClick={() => { setTab(t.key); setSelectedIds([]); }}
                 className={cn(
-                  'relative flex items-center gap-1.5 h-10 px-3 sm:px-4 text-[12px] font-bold transition-colors whitespace-nowrap shrink-0',
+                  'relative flex-1 flex items-center justify-center gap-1.5 h-10 px-1 text-[11px] font-bold transition-colors min-w-0',
                   tab === t.key
                     ? t.key === 'pendentes' ? 'text-amber-600' : 'text-navy'
                     : 'text-gray-400 hover:text-gray-700'
@@ -218,7 +241,67 @@ function TecnicoDespesasModal({
                 )}
               </button>
             ))}
+            {/* Botão filtro */}
+            <div className="shrink-0 flex items-center px-2">
+              <button
+                onClick={() => setShowFilters(v => !v)}
+                className={cn(
+                  'flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-bold transition-colors',
+                  showFilters || hasActiveFilters
+                    ? 'bg-navy text-white'
+                    : 'text-gray-400 hover:text-navy hover:bg-gray-100'
+                )}
+              >
+                <Search size={12} />
+                <span className="hidden sm:inline">Filtros</span>
+                {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+              </button>
+            </div>
           </div>
+
+          {/* Barra de filtros expandível */}
+          {!viewDesp && showFilters && (
+            <div className="shrink-0 px-4 py-3 border-t border-gray-100 bg-gray-50/60 flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Tipo, obra ou descrição…"
+                  className="w-full h-9 pl-8 pr-3 rounded-xl border border-gray-200 bg-white text-[12px] text-navy placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy/30"
+                />
+              </div>
+              <div className="relative">
+                <CalendarDays size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="h-9 pl-8 pr-3 rounded-xl border border-gray-200 bg-white text-[12px] text-navy focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy/30 w-full sm:w-auto"
+                  title="Data início"
+                />
+              </div>
+              <div className="relative">
+                <CalendarDays size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="h-9 pl-8 pr-3 rounded-xl border border-gray-200 bg-white text-[12px] text-navy focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy/30 w-full sm:w-auto"
+                  title="Data fim"
+                />
+              </div>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="h-9 px-3 rounded-xl border border-gray-200 text-[11px] font-bold text-gray-400 hover:text-navy hover:border-navy/30 transition-colors whitespace-nowrap"
+                >
+                  Limpar
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ════ BATCH BAR ════ */}
@@ -269,28 +352,23 @@ function TecnicoDespesasModal({
                     key={desp.id}
                     onClick={() => setViewDesp(desp)}
                     className={cn(
-                      'relative flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-gray-bg/30',
-                      isSelected && 'bg-blue-50/40',
-                      isPending && !isSelected && 'bg-amber-50/20'
+                      'group relative flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors hover:bg-gray-50',
+                      isPending
+                        ? 'border-l-2 border-l-amber-400 hover:bg-amber-50/20'
+                        : '',
+                      isSelected && 'bg-blue-50/40 border-l-2 border-l-blue-400'
                     )}
                   >
-                    {/* Faixa lateral pendente */}
-                    {isPending && <span className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r-full bg-amber-400" />}
-
-                    {/* Checkbox */}
-                    <div className="shrink-0" onClick={e => e.stopPropagation()}>
-                      {isPending ? (
-                        <input
-                          type="checkbox" checked={isSelected} onChange={() => toggleSelect(desp.id)}
-                          className="w-3.5 h-3.5 rounded border-gray-300 cursor-pointer"
-                        />
-                      ) : (
-                        <span className="block w-3.5" />
-                      )}
-                    </div>
+                    {/* Checkbox — só pendentes */}
+                    {isPending && (
+                      <div className="shrink-0" onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(desp.id)}
+                          className="w-3.5 h-3.5 rounded border-gray-300 cursor-pointer" />
+                      </div>
+                    )}
 
                     {/* Date badge */}
-                    <div className="shrink-0 w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex flex-col items-center justify-center">
+                    <div className="shrink-0 w-11 h-11 rounded-xl bg-gray-50 border border-gray-100 flex flex-col items-center justify-center">
                       <span className="text-[12px] font-black text-navy tabular-nums leading-tight">
                         {fmtDate(desp.data_despesa).split(' ')[0]}
                       </span>
@@ -299,56 +377,55 @@ function TecnicoDespesasModal({
                       </span>
                     </div>
 
-                    {/* Tipo + Obra — centrado no espaço disponível */}
-                    <div className="flex-1 min-w-0 flex flex-col items-center justify-center">
-                      <TipoPill tipo={desp.tipo_despesa} />
-                      <div className="flex items-center gap-1 mt-1">
-                        <p className="text-[10px] text-gray-400 truncate leading-tight">
-                          {desp.obra?.nome || desp.descricao || '—'}
-                        </p>
-                        {desp.obra?.codigo && (
-                          <span className="shrink-0 text-[9px] font-black text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-md tabular-nums">
-                            {desp.obra.codigo}
-                          </span>
-                        )}
+                    {/* Tipo + Obra — ocupa o espaço restante */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="shrink-0 w-2 h-2 rounded-full" style={{ backgroundColor: TIPO_DOT[desp.tipo_despesa] ?? '#94a3b8' }} />
+                        <span className="text-[12px] font-bold text-navy truncate capitalize">{desp.tipo_despesa}</span>
                       </div>
+                      <p className="text-[10px] text-gray-400 truncate leading-tight mt-0.5 pl-3.5">
+                        {desp.obra?.nome || desp.descricao || '—'}
+                      </p>
+                      {(desp.despesa_participantes?.length ?? 0) > 0 && (
+                        <p className="text-[9px] text-indigo-400 font-semibold leading-tight mt-0.5 pl-3.5 flex items-center gap-0.5">
+                          <Users size={9} className="shrink-0" />
+                          +{desp.despesa_participantes!.length} colega{desp.despesa_participantes!.length > 1 ? 's' : ''}
+                        </p>
+                      )}
                     </div>
 
-                    {/* Valor */}
-                    <div className="shrink-0 text-right">
-                      <span className="font-mono text-[13px] font-black text-navy tabular-nums">
+                    {/* Valor — largura fixa, alinhado à direita */}
+                    <div className="shrink-0 flex flex-col items-end gap-0.5">
+                      <span className="text-[12px] font-black text-navy tabular-nums">
                         {eur(Number(desp.valor))}
                       </span>
-                    </div>
-
-                    {/* Status + ações */}
-                    <div className="shrink-0 flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                      <StatusPill status={desp.status} nota={desp.nota_rejeicao} />
                       {(desp.recibos?.length ?? 0) > 0 && (
-                        <span title={`${desp.recibos!.length} recibo(s)`} className="w-7 h-7 rounded-full border border-gray-border text-gray-muted flex items-center justify-center shrink-0">
-                          <FileText size={12} />
+                        <span className="text-[9px] text-gray-400 flex items-center gap-0.5">
+                          <FileText size={9} />{desp.recibos!.length}
                         </span>
                       )}
-                      {isPending && (
+                    </div>
+
+                    {/* Ações — largura fixa, centradas */}
+                    <div className="shrink-0 w-[68px] flex items-center justify-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      {isPending ? (
                         <>
-                          <button
-                            onClick={() => onAprovar(desp.id)}
-                            disabled={busy}
-                            title="Aprovar"
-                            className="w-7 h-7 rounded-full border border-gray-border text-gray-muted hover:border-success hover:text-success hover:bg-success/8 disabled:opacity-40 flex items-center justify-center transition-all"
-                          >
-                            <CheckCircle2 size={13} strokeWidth={2} />
+                          <button onClick={() => onAprovar(desp.id)} disabled={busy} title="Aprovar"
+                            className="w-8 h-8 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 hover:bg-navy hover:border-navy hover:text-white disabled:opacity-40 flex items-center justify-center transition-all shadow-sm">
+                            <CheckCircle2 size={15} strokeWidth={2} />
                           </button>
-                          <button
-                            onClick={() => onRejeitar([desp.id])}
-                            disabled={busy}
-                            title="Rejeitar"
-                            className="w-7 h-7 rounded-full border border-gray-border text-gray-muted hover:border-error hover:text-error hover:bg-error/8 disabled:opacity-40 flex items-center justify-center transition-all"
-                          >
-                            <XCircle size={13} strokeWidth={2} />
+                          <button onClick={() => onRejeitar([desp.id])} disabled={busy} title="Rejeitar"
+                            className="w-8 h-8 rounded-xl bg-gray-50 border border-gray-200 text-gray-400 hover:bg-red-500 hover:border-red-500 hover:text-white disabled:opacity-40 flex items-center justify-center transition-all shadow-sm">
+                            <XCircle size={15} strokeWidth={2} />
                           </button>
                         </>
-                      )}
+                      ) : desp.status === 'aprovada' ? (
+                        <CheckCircle2 size={18} className="text-emerald-400" strokeWidth={2} />
+                      ) : desp.status === 'rejeitada' ? (
+                        <span title={desp.nota_rejeicao ?? undefined} className="cursor-help">
+                          <XCircle size={18} className="text-red-300" strokeWidth={2} />
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -411,6 +488,25 @@ function TecnicoDespesasModal({
                   </div>
                 ))}
               </div>
+
+              {/* Quem beneficiou */}
+              {(viewDesp.despesa_participantes?.length ?? 0) > 0 && (
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 px-5 py-4">
+                  <div className="flex items-center gap-1.5 mb-2.5">
+                    <Users size={12} className="text-indigo-400 shrink-0" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                      Cobriu {viewDesp.despesa_participantes!.length} colega{viewDesp.despesa_participantes!.length > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewDesp.despesa_participantes!.map((p) => (
+                      <span key={p.tecnico.id} className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-100 text-[11px] font-semibold text-indigo-700">
+                        {p.tecnico.full_name.split(' ')[0]}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {viewDesp.status === 'rejeitada' && viewDesp.nota_rejeicao && (
                 <div className="rounded-2xl border border-red-100 bg-red-50/50 px-5 py-4">
@@ -486,7 +582,7 @@ export default function AdminDespesasPage() {
   const [activeTab, setActiveTab] = useState<'despesas' | 'saldo' | 'recibos'>('despesas');
 
   // Despesas tab state
-  const [selectedGrupo, setSelectedGrupo] = useState<GrupoDespesas | null>(null);
+  const [selectedTecnicoId, setSelectedTecnicoId] = useState<string | null>(null);
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; ids: string[]; nota: string }>({
     open: false, ids: [], nota: '',
   });
@@ -563,6 +659,11 @@ export default function AdminDespesasPage() {
     const totalGasto = todasDespesas.filter(d => d.status === 'aprovada').reduce((s, d) => s + Number(d.valor), 0);
     return { totalDep, totalGasto, saldo: totalDep - totalGasto };
   }, [depositos, todasDespesas]);
+
+  const selectedGrupo = useMemo(
+    () => grupos.find(g => g.tecnicoId === selectedTecnicoId) ?? null,
+    [grupos, selectedTecnicoId]
+  );
 
   const isSaldoLoading = lDesp || lDep;
 
@@ -773,7 +874,7 @@ export default function AdminDespesasPage() {
               {!lDesp && grupos.map(grupo => (
                 <div
                   key={grupo.tecnicoId}
-                  onClick={() => setSelectedGrupo(grupo)}
+                  onClick={() => setSelectedTecnicoId(grupo.tecnicoId)}
                   className={cn(
                     'group flex items-center gap-4 px-5 py-4 border-b border-gray-border/40 cursor-pointer hover:bg-gray-bg/50 transition-colors',
                     grupo.pendentes > 0 && 'border-l-[3px] border-l-amber-400 pl-[17px]'
@@ -1128,11 +1229,11 @@ export default function AdminDespesasPage() {
       )}
 
       {/* ── Modal de detalhe do técnico (despesas) ─────────────── */}
-      <Dialog open={!!selectedGrupo} onOpenChange={o => !o && setSelectedGrupo(null)}>
+      <Dialog open={!!selectedGrupo} onOpenChange={o => !o && setSelectedTecnicoId(null)}>
         {selectedGrupo && (
           <TecnicoDespesasModal
             grupo={selectedGrupo}
-            onClose={() => setSelectedGrupo(null)}
+            onClose={() => setSelectedTecnicoId(null)}
             onAprovar={handleAprovar}
             onRejeitar={handleRejeitar}
             busy={busy}

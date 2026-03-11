@@ -3,18 +3,26 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { diasUteisMes } from '@/lib/utils/feriados';
 import { useApontamentos, useUpdateApontamentoStatus } from '@/lib/queries/apontamentos';
 import { useTecnicosComHoras } from '@/lib/queries/tecnicos';
 import { useObras } from '@/lib/queries/obras';
-import { useDespesas, useDepositos, useUpdateDespesaStatus } from '@/lib/queries/despesas';
-import {
+import { useDespesas, useDepositos, useUpdateDespesaStatus, useCreateDeposito } from '@/lib/queries/despesas';import { useAuth } from '@/hooks/useAuth';import {
   Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts';
 import {
   Clock, Users, Building2, Wallet, AlertCircle, CheckCircle2, XCircle, Receipt, Timer, Bell,
-  MapPin, User, ArrowDownCircle, ArrowUpCircle,
+  MapPin, User, ArrowDownCircle, ArrowUpCircle, TrendingUp, Zap,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ApontamentoDetalheModal } from '@/components/admin/ApontamentoDetalheModal';
+import { DespesaDetalheModal } from '@/components/admin/DespesaDetalheModal';
+import { ObrasDetalheModal } from '@/components/admin/ObrasDetalheModal';
+import { SaldoTecnicoModal } from '@/components/admin/SaldoTecnicoModal';
+import type { Apontamento } from '@/types';
+import type { Despesa, Obra, Profile } from '@/types';
 
 function eur(n: number) {
   return n.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -54,6 +62,7 @@ const BELL_PAGE_SIZE = 6;
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const { data: apontamentos = [], isLoading: lApt } = useApontamentos();
   const { data: tecnicos = [], isLoading: lTec } = useTecnicosComHoras();
   const { data: obras = [], isLoading: lObras } = useObras();
@@ -61,6 +70,7 @@ export default function AdminDashboardPage() {
   const { data: depositos = [], isLoading: lDep } = useDepositos();
   const updateAptStatus  = useUpdateApontamentoStatus();
   const updateDespStatus = useUpdateDespesaStatus();
+  const createDeposito   = useCreateDeposito();
   const isLoading = lApt || lTec || lDesp || lDep || lObras;
 
   const now = new Date();
@@ -102,6 +112,28 @@ export default function AdminDashboardPage() {
     }).sort((a, b) => b.horasMes - a.horasMes);
   }, [tecnicos, apontamentos, despesas, depositos, currentMonthStr]);
 
+  // ── Horas por técnico — mês vigente ──────────────────────────────────────
+  const horasInsight = useMemo(() => {
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const { total: diasUteisTotal, passados: diasUteisPassados } = diasUteisMes(year, month);
+    const targetMes = diasUteisTotal * 8;
+    const progPct = diasUteisTotal > 0 ? diasUteisPassados / diasUteisTotal : 0;
+    const lista = performanceTecnicos
+      .filter(t => t.horasMes > 0)
+      .map(t => ({
+        id: t.id,
+        nome: t.full_name,
+        avatar: (t as any).avatar_url ?? null,
+        horasNormal: t.horasMes - t.horasExtraMes,
+        horasExtra: t.horasExtraMes,
+        horasTotal: t.horasMes,
+      }))
+      .sort((a, b) => b.horasTotal - a.horasTotal);
+    const totalHoras = lista.reduce((s, t) => s + t.horasTotal, 0);
+    return { lista, targetMes, progPct, diasUteisTotal, diasUteisPassados, diasUteisRestantes: diasUteisTotal - diasUteisPassados, totalHoras };
+  }, [performanceTecnicos]);
+
   // ── Despesas por categoria — mês ──────────────────────────────────────────
   const custosPorTipoMes = useMemo(() => {
     const tipos = ['combustível', 'alimentação', 'alojamento', 'material', 'outro'];
@@ -122,17 +154,48 @@ export default function AdminDashboardPage() {
         const prog = o.progresso ?? 0;
         const orcamento = (o as any).orcamento ?? null;
         const budgetPct = orcamento && orcamento > 0 ? Math.min((custo / orcamento) * 100, 100) : null;
-        const budgetColor = budgetPct === null ? null : budgetPct > 90 ? '#FF1744' : budgetPct > 70 ? '#FF9100' : '#00E676';
-        const tecnicosAtivos = [...new Set(
-          apontamentos
-            .filter((a) => a.obra_id === o.id && a.status === 'aprovado' && a.data_apontamento.startsWith(currentMonthStr))
-            .map((a) => (a.tecnico?.full_name ?? '').split(' ')[0])
-            .filter(Boolean)
-        )];
+        const totalHoras = apontamentos
+          .filter((a) => a.obra_id === o.id && a.status === 'aprovado')
+          .reduce((s, a) => s + (a.total_horas ?? 0), 0);
+        // Unique technicians linked to this obra via apontamentos OR despesas
+        const tecMap = new Map<string, { id: string; nome: string; avatar: string | null }>();
+        apontamentos
+          .filter((a) => a.obra_id === o.id && a.status !== 'rejeitado')
+          .forEach((a) => {
+            if (!tecMap.has(a.tecnico_id)) {
+              tecMap.set(a.tecnico_id, {
+                id: a.tecnico_id,
+                nome: a.tecnico?.full_name ?? '?',
+                avatar: (a.tecnico as any)?.avatar_url ?? null,
+              });
+            }
+          });
+        despesas
+          .filter((d) => d.obra_id === o.id && d.status !== 'rejeitada')
+          .forEach((d) => {
+            if (!tecMap.has(d.tecnico_id)) {
+              tecMap.set(d.tecnico_id, {
+                id: d.tecnico_id,
+                nome: d.tecnico?.full_name ?? '?',
+                avatar: (d.tecnico as any)?.avatar_url ?? null,
+              });
+            }
+          });
+        // Also include technicians assigned via obra_tecnicos
+        (o.obra_tecnicos ?? []).forEach((ot) => {
+          if (!tecMap.has(ot.tecnico.id)) {
+            tecMap.set(ot.tecnico.id, {
+              id: ot.tecnico.id,
+              nome: ot.tecnico.full_name,
+              avatar: ot.tecnico.avatar_url ?? null,
+            });
+          }
+        });
+        const tecnicosAtivos = [...tecMap.values()];
         return {
           id: o.id, nome: o.nome, cliente: o.cliente,
           localizacao: (o as any).localizacao ?? null,
-          prog, custo, orcamento, budgetPct, budgetColor, tecnicosAtivos,
+          prog, custo, orcamento, budgetPct, totalHoras, tecnicosAtivos,
         };
       })
       .sort((a, b) => b.prog - a.prog)
@@ -144,6 +207,7 @@ export default function AdminDashboardPage() {
   const pendentesCombo = useMemo(() => {
     const apts = apontamentos.filter((a) => a.status === 'pendente').map((a) => ({
       id: a.id, tipo: 'apontamento' as const,
+      tecnicoId: a.tecnico_id,
       tecnicoNome: a.tecnico?.full_name ?? '—',
       avatarUrl: a.tecnico?.avatar_url ?? null,
       obraNome: a.obra?.nome ?? 'Oficina',
@@ -153,6 +217,7 @@ export default function AdminDashboardPage() {
     }));
     const desps = despesas.filter((d) => d.status === 'pendente').map((d) => ({
       id: d.id, tipo: 'despesa' as const,
+      tecnicoId: d.tecnico_id,
       tecnicoNome: d.tecnico?.full_name ?? '—',
       avatarUrl: d.tecnico?.avatar_url ?? null,
       obraNome: d.obra?.nome ?? '—',
@@ -168,10 +233,21 @@ export default function AdminDashboardPage() {
 
   const totalNotificacoes = pendentesCombo.length;
 
+  // ── Estados dos modais ────────────────────────────────────────────────────
+  const [selectedApt, setSelectedApt] = useState<Apontamento | null>(null);
+  const [selectedDesp, setSelectedDesp] = useState<Despesa | null>(null);
+  const [selectedObra, setSelectedObra] = useState<Obra | null>(null);
+  const [selectedTecnicoSaldo, setSelectedTecnicoSaldo] = useState<Profile | null>(null);
+  const [rejectDialogApt, setRejectDialogApt] = useState<{ open: boolean; ids: string[]; nota: string }>({ open: false, ids: [], nota: '' });
+  const [rejectPendingApt, setRejectPendingApt] = useState(false);
+  const [rejectDialogDesp, setRejectDialogDesp] = useState<{ open: boolean; ids: string[]; nota: string }>({ open: false, ids: [], nota: '' });
+  const [rejectPendingDesp, setRejectPendingDesp] = useState(false);
+
   // ── Bell ──────────────────────────────────────────────────────────────────
   const [bellOpen, setBellOpen] = useState(false);
   const [bellPos, setBellPos] = useState({ top: 0, left: 0 });
   const [bellFilter, setBellFilter] = useState<'todos' | 'apontamento' | 'despesa'>('todos');
+
   const bellButtonRef = useRef<HTMLButtonElement>(null);
   const bellDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -194,6 +270,39 @@ export default function AdminDashboardPage() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [bellOpen]);
+
+  // ── Handlers modais ───────────────────────────────────────────────────────
+  async function handleAprovarApt(id: string) {
+    try { await updateAptStatus.mutateAsync({ id, status: 'aprovado' }); toast.success('Apontamento aprovado'); }
+    catch { toast.error('Erro ao aprovar'); }
+  }
+  function handleRejeitarApt(ids: string[]) { setRejectDialogApt({ open: true, ids, nota: '' }); }
+  async function handleConfirmRejeitarApt() {
+    const { ids, nota } = rejectDialogApt;
+    setRejectPendingApt(true);
+    try {
+      await Promise.all(ids.map(id => updateAptStatus.mutateAsync({ id, status: 'rejeitado', nota_rejeicao: nota.trim() || null })));
+      toast.success('Apontamento rejeitado');
+      setRejectDialogApt({ open: false, ids: [], nota: '' });
+    } catch { toast.error('Erro ao rejeitar'); }
+    finally { setRejectPendingApt(false); }
+  }
+
+  async function handleAprovarDesp(id: string) {
+    try { await updateDespStatus.mutateAsync({ id, status: 'aprovada' }); toast.success('Despesa aprovada'); }
+    catch { toast.error('Erro ao aprovar'); }
+  }
+  function handleRejeitarDesp(ids: string[]) { setRejectDialogDesp({ open: true, ids, nota: '' }); }
+  async function handleConfirmRejeitarDesp() {
+    const { ids, nota } = rejectDialogDesp;
+    setRejectPendingDesp(true);
+    try {
+      await Promise.all(ids.map(id => updateDespStatus.mutateAsync({ id, status: 'rejeitada', nota_rejeicao: nota.trim() || null })));
+      toast.success('Despesa rejeitada');
+      setRejectDialogDesp({ open: false, ids: [], nota: '' });
+    } catch { toast.error('Erro ao rejeitar'); }
+    finally { setRejectPendingDesp(false); }
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -249,13 +358,15 @@ export default function AdminDashboardPage() {
                   {visivel.map((item) => {
                     const isApt = item.tipo === 'apontamento';
                     return (
-                      <div key={`${item.tipo}-${item.id}`} className={cn('flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-bg/60', item.isOld && 'bg-amber-50/40')}>
+                      <div key={`${item.tipo}-${item.id}`}
+                        className={cn('flex items-center gap-2.5 px-4 py-2.5 hover:bg-gray-bg/60 cursor-pointer', item.isOld && 'bg-amber-50/40')}
+                        onClick={() => { setBellOpen(false); if (isApt) { const a = apontamentos.find(x => x.id === item.id); if (a) setSelectedApt(a); } else { const d = despesas.find(x => x.id === item.id); if (d) setSelectedDesp(d); } }}>
                         <div className="flex-1 min-w-0">
                           <p className="text-[10px] font-black uppercase tracking-wide mb-0.5" style={{ color: isApt ? '#3D5AFE' : '#FF9100' }}>{isApt ? 'Apontamento' : 'Despesa'}</p>
                           <p className="text-[11px] font-semibold text-navy truncate">{item.tecnicoNome.split(' ')[0]} · {item.subtitulo.split(' · ')[0]}</p>
                           <p className="text-[9px] text-gray-muted">{new Date(item.data + 'T00:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' })}{item.isOld && ' · antigo'}</p>
                         </div>
-                        <div className="flex gap-1">
+                        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                           <button onClick={() => isApt ? updateAptStatus.mutate({ id: item.id, status: 'aprovado' }) : updateDespStatus.mutate({ id: item.id, status: 'aprovada' })} disabled={busy} title="Aprovar"
                             className="w-7 h-7 rounded-lg border border-gray-border text-gray-muted hover:border-success hover:text-success hover:bg-success/5 disabled:opacity-30 flex items-center justify-center transition-all">
                             <CheckCircle2 size={13} />
@@ -358,7 +469,11 @@ export default function AdminDashboardPage() {
                 const isApt = item.tipo === 'apontamento';
                 const busy = updateAptStatus.isPending || updateDespStatus.isPending;
                 return (
-                  <div key={`${item.tipo}-${item.id}`} className={cn('flex items-center gap-3 px-4 py-3 hover:bg-gray-bg/30 transition-colors', item.isOld && 'bg-amber-50/30')}>
+                  <div
+                    key={`${item.tipo}-${item.id}`}
+                    onClick={() => { if (isApt) { const a = apontamentos.find(x => x.id === item.id); if (a) setSelectedApt(a); } else { const d = despesas.find(x => x.id === item.id); if (d) setSelectedDesp(d); } }}
+                    className={cn('flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-bg/30 transition-colors', item.isOld && 'bg-amber-50/30')}
+                  >
                     {/* Avatar */}
                     <div className="shrink-0 w-10 h-10 rounded-full bg-navy flex items-center justify-center overflow-hidden ring-2 ring-white shadow-sm">
                       {item.avatarUrl
@@ -386,15 +501,15 @@ export default function AdminDashboardPage() {
                         {item.subtitulo} · {new Date(item.data + 'T00:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' })}
                       </p>
                     </div>
-                    {/* Ações */}
-                    <div className="flex gap-1.5 shrink-0">
+                    {/* Ações rápidas */}
+                    <div className="flex gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                       <button onClick={() => isApt ? updateAptStatus.mutate({ id: item.id, status: 'aprovado' }) : updateDespStatus.mutate({ id: item.id, status: 'aprovada' })}
-                        disabled={busy} title="Aprovar"
+                        disabled={busy} title="Aprovar rápido"
                         className="w-8 h-8 rounded-full border border-gray-border text-gray-muted hover:border-success hover:text-success hover:bg-success/8 disabled:opacity-40 flex items-center justify-center transition-all shadow-sm">
                         <CheckCircle2 size={14} strokeWidth={2} />
                       </button>
                       <button onClick={() => isApt ? updateAptStatus.mutate({ id: item.id, status: 'rejeitado' }) : updateDespStatus.mutate({ id: item.id, status: 'rejeitada' })}
-                        disabled={busy} title="Rejeitar"
+                        disabled={busy} title="Rejeitar rápido"
                         className="w-8 h-8 rounded-full border border-gray-border text-gray-muted hover:border-error hover:text-error hover:bg-error/8 disabled:opacity-40 flex items-center justify-center transition-all shadow-sm">
                         <XCircle size={14} strokeWidth={2} />
                       </button>
@@ -406,57 +521,172 @@ export default function AdminDashboardPage() {
           )}
         </div>
 
-        {/* Coluna direita: 3 cards — Despesas | Saldo | Obras */}
+        {/* Coluna direita: grid 2 colunas no topo (Despesas + Horas) + grid 2 colunas no fundo (Saldo + Obras) */}
         <div className="flex flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
 
+          {/* ── Despesas + Horas — lado a lado ───────────────────────── */}
+          <div className="grid grid-cols-2 gap-3 lg:flex-1 lg:min-h-0">
+
           {/* ── Despesas do mês ──────────────────────────────────── */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-border/60 p-4 lg:flex-1 lg:flex lg:flex-col lg:overflow-hidden">
-            <h2 className="text-[14px] font-black text-navy mb-3 shrink-0">Despesas — {nomeMesCap}</h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-border/60 flex flex-col overflow-hidden min-h-0">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-4 pb-1 shrink-0">
+              <h2 className="text-[14px] font-black text-navy">Despesas — {nomeMesCap}</h2>
+              <span className="text-[13px] font-black text-navy tabular-nums">{isLoading ? '—' : eur(kpis.custoMes)}</span>
+            </div>
+
             {isLoading ? (
-              <div className="flex gap-4 items-center flex-1">
-                <Sk className="w-[140px] h-[140px] rounded-full shrink-0" />
-                <div className="flex-1 space-y-2.5">{Array.from({ length: 4 }).map((_, i) => <Sk key={i} className="h-2.5" />)}</div>
+              <div className="flex-1 flex items-center justify-center p-6">
+                <Sk className="w-48 h-48 rounded-full" />
               </div>
             ) : custosPorTipoMes.length === 0 ? (
               <div className="flex-1 flex items-center justify-center">
                 <p className="text-[12px] text-gray-muted">Sem despesas aprovadas este mês</p>
               </div>
             ) : (
-              <div className="flex items-center gap-5 lg:flex-1 lg:min-h-0">
-                <div className="relative shrink-0" style={{ width: 140, height: 140 }}>
+              <>
+                {/* Donut — ocupa todo o espaço livre */}
+                <div className="flex-1 min-h-0 relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={custosPorTipoMes} cx="50%" cy="50%" innerRadius={46} outerRadius={66} paddingAngle={3} dataKey="value" strokeWidth={0}>
+                      <Pie
+                        data={custosPorTipoMes}
+                        cx="50%" cy="50%"
+                        innerRadius="42%"
+                        outerRadius="68%"
+                        paddingAngle={3}
+                        dataKey="value"
+                        strokeWidth={0}
+                      >
                         {custosPorTipoMes.map((e, i) => <Cell key={i} fill={e.color} />)}
                       </Pie>
                       <Tooltip content={<TooltipCategoria />} />
                     </PieChart>
                   </ResponsiveContainer>
+                  {/* Texto central */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
-                    <p className="text-[12px] font-black text-navy tabular-nums leading-tight text-center px-2">{eur(kpis.custoMes)}</p>
-                    <p className="text-[8px] text-gray-muted uppercase tracking-widest mt-0.5">total</p>
+                    <p className="text-[9px] text-gray-400 uppercase tracking-widest">total</p>
+                    <p className="text-[14px] font-black text-navy tabular-nums mt-0.5">{eur(kpis.custoMes)}</p>
                   </div>
                 </div>
-                <div className="flex-1 space-y-2.5 min-w-0">
-                  {custosPorTipoMes.slice(0, 5).map((t) => (
-                    <div key={t.name}>
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                        <span className="text-[11px] font-medium text-navy flex-1 truncate">{t.name}</span>
-                        <span className="text-[10px] font-black text-gray-muted tabular-nums">{t.pct}%</span>
+
+                {/* Legenda — linha compacta no fundo */}
+                <div className="shrink-0 px-4 pb-4">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                    {custosPorTipoMes.slice(0, 6).map((t) => (
+                      <div key={t.name} className="flex items-center gap-2 min-w-0">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                        <span className="text-[11px] font-semibold text-navy truncate flex-1">{t.name}</span>
+                        <span className="text-[10px] font-bold tabular-nums shrink-0" style={{ color: t.color }}>{t.pct}%</span>
                       </div>
-                      <div className="h-[3px] w-full rounded-full bg-gray-100 overflow-hidden ml-3">
-                        <div className="h-full rounded-full" style={{ width: `${t.pct}%`, backgroundColor: t.color, opacity: 0.75 }} />
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── Horas dos Técnicos — mês vigente ─────────────────── */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-border/60 flex flex-col overflow-hidden min-h-0">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
+              <div>
+                <h2 className="text-[13px] font-black text-navy leading-none">Horas — {nomeMesCap}</h2>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  {horasInsight.diasUteisPassados}/{horasInsight.diasUteisTotal} dias úteis
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[13px] font-black text-navy tabular-nums leading-none">
+                  {isLoading ? '—' : `${Math.floor(horasInsight.totalHoras)}h`}
+                </p>
+                <p className="text-[10px] text-gray-400 mt-0.5">registadas</p>
+              </div>
+            </div>
+
+            {/* Barra de progresso do mês */}
+            <div className="px-4 pb-3 shrink-0">
+              <div className="h-[5px] w-full rounded-full bg-gray-100 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-navy transition-all duration-700"
+                  style={{ width: `${Math.round(horasInsight.progPct * 100)}%` }}
+                />
+              </div>
+              <div className="flex justify-between mt-1">
+                <span className="text-[9px] text-gray-400">{Math.round(horasInsight.progPct * 100)}% do mês</span>
+                <span className="text-[9px] text-gray-400">{horasInsight.diasUteisRestantes}d restantes</span>
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="p-3 space-y-2">{Array.from({ length: 4 }).map((_, i) => <Sk key={i} className="h-8 rounded-xl" />)}</div>
+            ) : horasInsight.lista.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-1.5 py-8">
+                <Clock size={22} className="text-gray-300" />
+                <p className="text-[12px] text-gray-muted">Sem horas este mês</p>
+              </div>
+            ) : (
+              <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3 space-y-1.5">
+                {horasInsight.lista.map((t) => {
+                  const target = horasInsight.targetMes;
+                  const pct = target > 0 ? Math.min((t.horasTotal / target) * 100, 100) : 0;
+                  const isBehind = t.horasTotal < horasInsight.targetMes * horasInsight.progPct * 0.80;
+                  const isAhead  = t.horasTotal > horasInsight.targetMes * horasInsight.progPct * 1.05;
+                  const barColor = isBehind ? '#EF4444' : isAhead ? '#10B981' : '#1B2E4B';
+                  return (
+                    <div key={t.id} className="flex items-center gap-2 px-2.5 py-2 rounded-xl hover:bg-gray-50 transition-colors">
+                      <div className="shrink-0 w-7 h-7 rounded-full bg-navy overflow-hidden flex items-center justify-center ring-2 ring-white shadow-sm">
+                        {t.avatar
+                          ? <img src={t.avatar} alt={t.nome} className="w-full h-full object-cover" />
+                          : <span className="text-[9px] font-black text-white">{t.nome.split(' ').map((n: string) => n[0]).join('').slice(0,2).toUpperCase()}</span>
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-[10px] font-bold text-navy truncate">{t.nome.split(' ')[0]}</span>
+                          <div className="flex items-center gap-1 shrink-0 ml-1">
+                            {t.horasExtra > 0 && (
+                              <span className="text-[8px] font-black text-amber-600 bg-amber-50 px-1 py-0.5 rounded-md tabular-nums">
+                                +{Math.floor(t.horasExtra)}h
+                              </span>
+                            )}
+                            <span className="text-[10px] font-black tabular-nums" style={{ color: barColor }}>
+                              {Math.floor(t.horasTotal)}h
+                            </span>
+                          </div>
+                        </div>
+                        <div className="h-[3px] w-full rounded-full bg-gray-100 overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+                        </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Footer: meta + extras */}
+            {!isLoading && horasInsight.targetMes > 0 && (
+              <div className="shrink-0 px-4 py-2.5 border-t border-gray-50 flex items-center justify-between">
+                <div className="flex items-center gap-1 text-[9px] text-gray-400">
+                  <TrendingUp size={9} />
+                  <span>Meta: {horasInsight.targetMes}h/técnico</span>
+                </div>
+                <div className="flex items-center gap-1 text-[9px] text-gray-400">
+                  <Zap size={9} />
+                  <span>{horasInsight.lista.filter((t: { horasExtra: number }) => t.horasExtra > 0).length} c/ extras</span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* ── Saldo dos Técnicos ────────────────────────────────── */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-border/60 p-4 lg:flex-1 lg:flex lg:flex-col lg:min-h-0 lg:overflow-hidden">
+          </div>{/* fim grid Despesas+Horas */}
+
+          {/* ── Saldo + Obras — lado a lado ──────────────────────── */}
+          <div className="grid grid-cols-2 gap-3 lg:flex-1 lg:min-h-0">
+
+          {/* ── Saldo dos Técnicos ─────────────────────────────── */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-border/60 p-4 flex flex-col min-h-0 overflow-hidden">
             <div className="flex items-center justify-between mb-3 shrink-0">
               <h2 className="text-[14px] font-black text-navy">Saldo dos Técnicos</h2>
               <span className={cn('text-[13px] font-black tabular-nums', kpis.saldoGlobal >= 0 ? 'text-navy' : 'text-error')}>
@@ -473,14 +703,14 @@ export default function AdminDashboardPage() {
                 .sort((a, b) => b.saldo - a.saldo);
               const maxSaldo = Math.max(...lista.map(t => Math.max(t.saldo, 0)), 1);
               return (
-              <div className="space-y-1.5 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+              <div className="space-y-1.5 flex-1 min-h-0 overflow-y-auto">
                 {lista.map((t) => {
                     const pct = Math.min(Math.max((t.saldo / maxSaldo) * 100, 0), 100);
                     const isCrit = t.saldo < 50;
                     const isWarn = !isCrit && t.saldo < 150;
                     const barColor = isCrit ? '#EF4444' : isWarn ? '#D97706' : '#1B2E4B';
                     return (
-                      <div key={t.id} className={cn('flex items-center gap-2.5 px-3 py-2 rounded-xl transition-colors hover:bg-gray-bg/60', isCrit && 'bg-red-50/60')}>
+                      <div key={t.id} onClick={() => setSelectedTecnicoSaldo(t as Profile)} className={cn('flex items-center gap-2.5 px-3 py-2 rounded-xl transition-colors hover:bg-gray-bg/60 cursor-pointer', isCrit && 'bg-red-50/60')}>
                         <div className="shrink-0 w-8 h-8 rounded-full bg-navy overflow-hidden flex items-center justify-center ring-2 ring-white shadow-sm">
                           {(t as any).avatar_url
                             ? <img src={(t as any).avatar_url} alt={t.full_name} className="w-full h-full object-cover object-center" />
@@ -517,48 +747,100 @@ export default function AdminDashboardPage() {
             })()}
           </div>
 
-          {/* ── Obras em Curso ────────────────────────────────────── */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-border/60 p-4 lg:flex-1 lg:flex lg:flex-col lg:min-h-0 lg:overflow-hidden">
-            <div className="flex items-center justify-between mb-3 shrink-0">
+          {/* ── Obras em Curso ─────────────────────────────────── */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-border/60 overflow-hidden flex flex-col min-h-0">
+            <div className="px-4 pt-3.5 pb-2.5 border-b border-gray-100 flex items-center justify-between shrink-0">
               <h2 className="text-[14px] font-black text-navy">Obras em Curso</h2>
-              <span className="text-[11px] text-gray-muted">{obrasInsight.length} ativa{obrasInsight.length !== 1 ? 's' : ''}</span>
+              {obrasInsight.length > 0 && (
+                <span className="text-[10px] font-bold text-gray-400 tabular-nums">
+                  {obrasInsight.length} ativa{obrasInsight.length !== 1 ? 's' : ''}
+                </span>
+              )}
             </div>
             {isLoading ? (
-              <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Sk key={i} className="h-7" />)}</div>
+              <div className="p-3 space-y-2">{Array.from({ length: 3 }).map((_, i) => <Sk key={i} className="h-[60px] rounded-xl" />)}</div>
             ) : obrasInsight.length === 0 ? (
-              <p className="text-[12px] text-gray-muted text-center py-3">Sem obras ativas</p>
+              <div className="flex flex-col items-center justify-center gap-1.5 py-8">
+                <Building2 size={22} className="text-gray-300" />
+                <p className="text-[12px] text-gray-muted">Sem obras ativas</p>
+              </div>
             ) : (
-              <div className="space-y-3 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+              <div className="p-3 space-y-2 flex-1 min-h-0 overflow-y-auto">
                 {obrasInsight.map((o) => {
-                  const [gradA, gradB] = o.prog >= 75 ? ['#3D5AFE','#7B9FFF'] : o.prog >= 40 ? ['#6B7280','#9CA3AF'] : ['#FF9100','#FFB74D'];
+                  const accent = o.budgetPct !== null
+                    ? (o.budgetPct > 90 ? '#EF4444' : o.budgetPct > 70 ? '#D97706' : '#10B981')
+                    : (o.prog >= 75 ? '#3D5AFE' : o.prog >= 40 ? '#10B981' : '#D97706');
                   return (
-                    <div key={o.id}>
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[11px] font-bold text-navy truncate leading-tight">{o.nome}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {(o.localizacao || o.cliente) && (
-                              <span className="flex items-center gap-0.5 text-[9px] text-gray-muted min-w-0">
-                                <MapPin size={8} className="shrink-0" />
-                                <span className="truncate max-w-[80px]">{o.localizacao || o.cliente}</span>
-                              </span>
-                            )}
-                            {o.tecnicosAtivos.length > 0 && (
-                              <span className="flex items-center gap-0.5 text-[9px] font-semibold min-w-0" style={{ color: gradA }}>
-                                <User size={8} className="shrink-0" />
-                                <span className="truncate max-w-[80px]">
-                                  {o.tecnicosAtivos.slice(0, 2).join(', ')}{o.tecnicosAtivos.length > 2 ? ` +${o.tecnicosAtivos.length - 2}` : ''}
-                                </span>
-                              </span>
+                    <div key={o.id} onClick={() => {
+                      const full = obras.find(ob => ob.id === o.id) ?? null;
+                      setSelectedObra(full);
+                    }} className="rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-colors overflow-hidden cursor-pointer" style={{ borderLeftWidth: 3, borderLeftColor: accent }}>
+                      {/* Linha 1: nome + progresso */}
+                      <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
+                        <p className="flex-1 text-[12px] font-bold text-navy truncate leading-tight">{o.nome}</p>
+                        <span className="shrink-0 text-[11px] font-black tabular-nums" style={{ color: accent }}>{o.prog}%</span>
+                      </div>
+
+                      {/* Linha 2: cliente · localização · horas */}
+                      <div className="flex items-center gap-2 px-3 pb-1 flex-wrap">
+                        {o.cliente && <span className="text-[9px] text-gray-400 truncate max-w-[90px]">{o.cliente}</span>}
+                        {o.localizacao && (
+                          <>
+                            {o.cliente && <span className="text-gray-300 text-[9px]">·</span>}
+                            <span className="flex items-center gap-0.5 text-[9px] text-gray-400">
+                              <MapPin size={7} className="shrink-0" />
+                              <span className="truncate max-w-[80px]">{o.localizacao}</span>
+                            </span>
+                          </>
+                        )}
+                        {o.totalHoras > 0 && (
+                          <>
+                            <span className="text-gray-300 text-[9px]">·</span>
+                            <span className="flex items-center gap-0.5 text-[9px] text-gray-400 tabular-nums">
+                              <Clock size={7} className="shrink-0" />
+                              {fmtH(o.totalHoras)}
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Linha 3: avatares + nomes dos técnicos + custo */}
+                      {o.tecnicosAtivos.length > 0 && (
+                        <div className="flex items-center gap-2 px-3 pb-2.5">
+                          {/* Avatares empilhados */}
+                          <div className="flex items-center shrink-0">
+                            {o.tecnicosAtivos.slice(0, 4).map((t, i) => (
+                              <div
+                                key={t.id}
+                                title={t.nome}
+                                className="w-5 h-5 rounded-full bg-navy border-[1.5px] border-white flex items-center justify-center overflow-hidden"
+                                style={{ marginLeft: i === 0 ? 0 : -5, zIndex: 10 - i }}
+                              >
+                                {t.avatar
+                                  ? <img src={t.avatar} alt={t.nome} className="w-full h-full object-cover object-center" />
+                                  : <span className="text-[6px] font-black text-white select-none">{getInitials(t.nome)}</span>
+                                }
+                              </div>
+                            ))}
+                            {o.tecnicosAtivos.length > 4 && (
+                              <div className="w-5 h-5 rounded-full bg-gray-200 border-[1.5px] border-white flex items-center justify-center text-[6px] font-black text-gray-500 select-none" style={{ marginLeft: -5 }}>
+                                +{o.tecnicosAtivos.length - 4}
+                              </div>
                             )}
                           </div>
+                          {/* Nomes */}
+                          <p className="flex-1 text-[9px] font-semibold text-gray-500 truncate">
+                            {o.tecnicosAtivos.map((t) => {
+                              const parts = t.nome.trim().split(' ');
+                              return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0];
+                            }).join(' · ')}
+                          </p>
+                          {/* Custo */}
+                          {o.custo > 0 && (
+                            <span className="shrink-0 text-[9px] font-bold text-gray-400 tabular-nums">{eur(o.custo)}</span>
+                          )}
                         </div>
-                        <span className="text-[12px] font-black tabular-nums shrink-0 mt-0.5" style={{ color: gradA }}>{o.prog}%</span>
-                      </div>
-                      <div className="h-[5px] w-full rounded-full bg-gray-100 overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-700"
-                          style={{ width: `${o.prog}%`, background: `linear-gradient(90deg, ${gradA}, ${gradB})` }} />
-                      </div>
+                      )}
                     </div>
                   );
                 })}
@@ -566,8 +848,125 @@ export default function AdminDashboardPage() {
             )}
           </div>
 
+          </div>{/* fim grid Saldo+Obras */}
+
         </div>
       </div>
+
+      {/* ── Modal Detalhe Apontamento ──────────────────────────────── */}
+      <Dialog open={!!selectedApt} onOpenChange={o => !o && setSelectedApt(null)}>
+        {selectedApt && (
+          <ApontamentoDetalheModal
+            apt={selectedApt}
+            onClose={() => setSelectedApt(null)}
+            onAprovar={handleAprovarApt}
+            onRejeitar={handleRejeitarApt}
+            busy={updateAptStatus.isPending}
+          />
+        )}
+      </Dialog>
+
+      {/* ── Modal Saldo Técnico ───────────────────────────────────── */}
+      <Dialog open={!!selectedTecnicoSaldo} onOpenChange={o => !o && setSelectedTecnicoSaldo(null)}>
+        {selectedTecnicoSaldo && (
+          <SaldoTecnicoModal
+            tecnico={selectedTecnicoSaldo}
+            depositos={depositos}
+            despesas={despesas}
+            adminId={profile?.id ?? ''}
+            onClose={() => setSelectedTecnicoSaldo(null)}
+            onCreateDeposito={async (data) => {
+              await createDeposito.mutateAsync(data);
+            }}
+            isSubmitting={createDeposito.isPending}
+          />
+        )}
+      </Dialog>
+
+      {/* ── Modal Detalhe Obra ─────────────────────────────────── */}
+      <Dialog open={!!selectedObra} onOpenChange={o => !o && setSelectedObra(null)}>
+        {selectedObra && (
+          <ObrasDetalheModal
+            obra={selectedObra}
+            apontamentos={apontamentos}
+            despesas={despesas}
+            onClose={() => setSelectedObra(null)}
+          />
+        )}
+      </Dialog>
+
+      {/* ── Modal Detalhe Despesa ──────────────────────────────────── */}
+      <Dialog open={!!selectedDesp} onOpenChange={o => !o && setSelectedDesp(null)}>
+        {selectedDesp && (
+          <DespesaDetalheModal
+            desp={selectedDesp}
+            onClose={() => setSelectedDesp(null)}
+            onAprovar={handleAprovarDesp}
+            onRejeitar={handleRejeitarDesp}
+            busy={updateDespStatus.isPending}
+          />
+        )}
+      </Dialog>
+
+      {/* ── Dialog Rejeição Apontamento ────────────────────────────── */}
+      <Dialog open={rejectDialogApt.open} onOpenChange={o => !o && setRejectDialogApt({ open: false, ids: [], nota: '' })}>
+        <DialogContent className="max-w-md rounded-2xl p-0 gap-0">
+          <DialogHeader className="px-5 py-4 border-b border-gray-border/60">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Confirmação</p>
+              <DialogTitle className="text-navy font-black text-[16px] tracking-tight mt-0.5">
+                Rejeitar {rejectDialogApt.ids.length > 1 ? `${rejectDialogApt.ids.length} Apontamentos` : 'Apontamento'}
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="px-5 py-4 space-y-3">
+            <p className="text-[12px] text-gray-muted">Motivo da rejeição (opcional). O técnico poderá ver esta nota.</p>
+            <textarea
+              value={rejectDialogApt.nota}
+              onChange={e => setRejectDialogApt(p => ({ ...p, nota: e.target.value }))}
+              placeholder="Ex: Horário incorrecto, faltam detalhes..."
+              rows={3}
+              className="w-full px-3 py-2 rounded-xl border border-gray-border bg-gray-bg text-[13px] text-gray-text placeholder:text-gray-muted/50 focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy/25 resize-none transition-all"
+            />
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setRejectDialogApt({ open: false, ids: [], nota: '' })} className="flex-1 h-10 rounded-xl border border-gray-border text-[13px] font-semibold text-gray-text hover:bg-gray-bg transition-colors">Cancelar</button>
+              <button onClick={handleConfirmRejeitarApt} disabled={rejectPendingApt} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-[13px] font-bold hover:bg-red-600 transition-colors disabled:opacity-60">
+                {rejectPendingApt ? 'A rejeitar...' : 'Confirmar Rejeição'}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog Rejeição Despesa ────────────────────────────────── */}
+      <Dialog open={rejectDialogDesp.open} onOpenChange={o => !o && setRejectDialogDesp({ open: false, ids: [], nota: '' })}>
+        <DialogContent className="max-w-md rounded-2xl p-0 gap-0">
+          <DialogHeader className="px-5 py-4 border-b border-gray-border/60">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-muted">Confirmação</p>
+              <DialogTitle className="text-navy font-black text-[16px] tracking-tight mt-0.5">
+                Rejeitar {rejectDialogDesp.ids.length > 1 ? `${rejectDialogDesp.ids.length} Despesas` : 'Despesa'}
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="px-5 py-4 space-y-3">
+            <p className="text-[12px] text-gray-muted">Motivo da rejeição (opcional). O técnico poderá ver esta nota.</p>
+            <textarea
+              value={rejectDialogDesp.nota}
+              onChange={e => setRejectDialogDesp(p => ({ ...p, nota: e.target.value }))}
+              placeholder="Ex: Comprovativo em falta, valor incorreto..."
+              rows={3}
+              className="w-full px-3 py-2 rounded-xl border border-gray-border bg-gray-bg text-[13px] text-gray-text placeholder:text-gray-muted/50 focus:outline-none focus:ring-2 focus:ring-navy/10 focus:border-navy/25 resize-none transition-all"
+            />
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setRejectDialogDesp({ open: false, ids: [], nota: '' })} className="flex-1 h-10 rounded-xl border border-gray-border text-[13px] font-semibold text-gray-text hover:bg-gray-bg transition-colors">Cancelar</button>
+              <button onClick={handleConfirmRejeitarDesp} disabled={rejectPendingDesp} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-[13px] font-bold hover:bg-red-600 transition-colors disabled:opacity-60">
+                {rejectPendingDesp ? 'A rejeitar...' : 'Confirmar Rejeição'}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

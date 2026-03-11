@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Wrench } from 'lucide-react';
+import { Wrench, Users, X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,6 +19,7 @@ import {
 import { ReciboUpload, type ReciboFile } from './ReciboUpload';
 import { useCreateObra } from '@/lib/queries/obras';
 import { useDeleteRecibo } from '@/lib/queries/despesas';
+import { useTecnicos } from '@/lib/queries/tecnicos';
 import { TIPOS_DESPESA, type TipoDespesa } from '@/types';
 import type { Obra, Despesa, ReciboDespesa } from '@/types';
 
@@ -99,6 +100,7 @@ interface DespesaModalProps {
     data_despesa: string;
     descricao?: string;
     ficheiros: ReciboFile[];
+    participante_ids?: string[];
   }) => void;
   isSubmitting?:   boolean;
   tecnicoId?:      string;
@@ -116,7 +118,9 @@ export function DespesaModal({
   const [tipoAtual,         setTipoAtual]         = useState<string>('');
   const [recibosExistentes, setRecibosExistentes] = useState<ReciboDespesa[]>([]);
   const [removendoId,       setRemovendoId]       = useState<string | null>(null);
+  const [participanteIds,   setParticipanteIds]   = useState<string[]>([]);
   const deleteRecibo = useDeleteRecibo();
+  const { data: todosTecnicos = [] } = useTecnicos();
 
   const today      = new Date().toISOString().split('T')[0];
   const createObra = useCreateObra();
@@ -136,6 +140,7 @@ export function DespesaModal({
       setRecibosExistentes(initialDespesa?.recibos ?? []);
       setFicheiros([]);
       setShowNovaObra(false);
+      setParticipanteIds(initialDespesa?.despesa_participantes?.map((p) => p.tecnico.id) ?? []);
       reset({
         obra_id:      obra,
         tipo_despesa: initialDespesa?.tipo_despesa,
@@ -171,13 +176,15 @@ export function DespesaModal({
     const obraId = data.obra_id === OFICINA_VALUE || !data.obra_id ? null : data.obra_id;
     onSubmit({
       ...data,
-      obra_id:      obraId,
-      tipo_despesa: data.tipo_despesa as TipoDespesa,
-      descricao:    data.descricao || undefined,
+      obra_id:         obraId,
+      tipo_despesa:    data.tipo_despesa as TipoDespesa,
+      descricao:       data.descricao || undefined,
       ficheiros,
+      participante_ids: participanteIds,
     });
     reset({ data_despesa: today });
     setFicheiros([]);
+    setParticipanteIds([]);
     setObraAtual('');
     setShowNovaObra(false);
   }
@@ -200,6 +207,7 @@ export function DespesaModal({
     setTipoAtual('');
     setShowNovaObra(false);
     setRecibosExistentes([]);
+    setParticipanteIds([]);
     reset({});
     resetObra();
     onClose();
@@ -378,6 +386,62 @@ export function DespesaModal({
                 className={sTextarea}
               />
             </div>
+
+            {/* Participantes */}
+            {todosTecnicos.filter((t) => t.id !== tecnicoId && t.is_active).length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Lbl>Quem beneficiou desta despesa?</Lbl>
+                  {participanteIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setParticipanteIds([])}
+                      className="text-[10px] text-red-400 hover:text-red-600 font-medium"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 divide-y divide-slate-100 overflow-hidden">
+                  {todosTecnicos
+                    .filter((t) => t.id !== tecnicoId && t.is_active)
+                    .map((t) => {
+                      const checked = participanteIds.includes(t.id);
+                      return (
+                        <label
+                          key={t.id}
+                          className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors select-none ${checked ? 'bg-navy/5' : 'hover:bg-slate-100'}`}
+                        >
+                          <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${checked ? 'bg-navy border-navy' : 'border-slate-300 bg-white'}`}>
+                            {checked && (
+                              <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M2 6l3 3 5-5" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className={`text-sm font-medium ${checked ? 'text-navy' : 'text-slate-600'}`}>{t.full_name}</span>
+                          <input
+                            type="checkbox"
+                            className="sr-only"
+                            checked={checked}
+                            onChange={() =>
+                              setParticipanteIds((prev) =>
+                                checked ? prev.filter((id) => id !== t.id) : [...prev, t.id]
+                              )
+                            }
+                          />
+                        </label>
+                      );
+                    })}
+                </div>
+                <p className="text-[10px] text-slate-400 px-0.5 mt-1">
+                  Ex: pagaste o almoço por colegas — seleciona quem participou.
+                  {participanteIds.length > 0 && (
+                    <span className="ml-1 font-semibold text-navy">{participanteIds.length} selecionado{participanteIds.length > 1 ? 's' : ''}.</span>
+                  )}
+                </p>
+              </div>
+            )}
 
             {/* Recibos existentes (só no modo edição) */}
             {isEdit && (
