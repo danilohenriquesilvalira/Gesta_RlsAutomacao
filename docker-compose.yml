@@ -27,6 +27,20 @@ services:
       - ./dns/Corefile-zt:/Corefile:ro
     command: -conf /Corefile
 
+  # ── mDNS / Avahi (gestao.local automático em todas as redes) ─
+  # Anuncia gestao.local via Bonjour/mDNS nas interfaces eno1 e ztkti7cao5
+  # iOS, Android e Windows reconhecem automaticamente sem configuração
+  avahi:
+    build:
+      context: ./dns/avahi
+      dockerfile: Dockerfile
+    container_name: gestao_avahi
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_BROADCAST
+      - NET_RAW
+
   # ── PostgreSQL Database ──────────────────────────────────────
   postgres:
     image: postgres:16-alpine
