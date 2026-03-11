@@ -1,0 +1,17 @@
+# Domínio interno: gestao.rls → IP ZeroTier do servidor
+gestao.rls {
+    hosts {
+        10.229.170.165 gestao.rls
+        10.229.170.165 www.gestao.rls
+        fallthrough
+    }
+    log
+}
+
+# Todos os outros domínios → Google DNS (internet normal)
+. {
+    forward . 8.8.8.8 8.8.4.4
+    cache 300
+    log
+    errors
+}
