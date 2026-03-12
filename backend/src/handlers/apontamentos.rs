@@ -43,7 +43,7 @@ async fn fetch_full_apontamento(
 ) -> Result<Apontamento, AppError> {
     let row = sqlx::query(
         "SELECT id, tecnico_id, obra_id, tipo_servico, tipo_hora, hora_entrada, hora_saida, \
-         total_horas, descricao, status, nota_rejeicao, data_apontamento, synced_at, created_at \
+         total_horas::float8 AS total_horas, descricao, status, nota_rejeicao, data_apontamento, synced_at, created_at \
          FROM apontamentos WHERE id = $1",
     )
     .bind(apontamento_id)

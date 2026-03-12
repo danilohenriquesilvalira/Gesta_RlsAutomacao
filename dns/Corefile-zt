@@ -7,6 +7,15 @@ gestao.rls {
     }
     log
 }
+
+local {
+    hosts {
+        10.229.170.165 gestaorls.local
+        fallthrough
+    }
+    log
+}
+
 . {
     forward . 8.8.8.8 8.8.4.4
     cache 300

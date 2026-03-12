@@ -18,7 +18,7 @@ import {
   useUpdateApontamento,
   useDeleteApontamento,
 } from '@/lib/queries/apontamentos';
-import { useObras } from '@/lib/queries/obras';
+import { useMinhasObras } from '@/lib/queries/obras';
 import { saveOfflineApontamento } from '@/lib/offline/indexeddb';
 import type { Apontamento, ApontamentoStatus, TipoHora } from '@/types';
 
@@ -65,7 +65,7 @@ export default function ApontamentosPage() {
     profile ? { tecnicoId: profile.id } : undefined,
     { enabled: !!profile?.id }
   );
-  const { data: obras = [] } = useObras('ativa', profile?.id, { enabled: !!profile?.id });
+  const { data: obras = [] } = useMinhasObras(profile?.id ?? '', { enabled: !!profile?.id });
 
   const createApt = useCreateApontamento();
   const updateApt = useUpdateApontamento();

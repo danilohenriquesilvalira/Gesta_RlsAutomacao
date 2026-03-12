@@ -16,7 +16,7 @@ pub async fn list_depositos(
         let mut args = PgArguments::default();
         args.add(*tecnico_id).ok();
         sqlx::query_with(
-            "SELECT id, tecnico_id, admin_id, valor, descricao, data_deposito, created_at \
+            "SELECT id, tecnico_id, admin_id, valor::float8 AS valor, descricao, data_deposito, created_at \
              FROM depositos WHERE tecnico_id = $1 ORDER BY data_deposito DESC",
             args,
         )
@@ -25,7 +25,7 @@ pub async fn list_depositos(
         .map_err(|e| AppError::InternalError(e.to_string()))?
     } else {
         sqlx::query(
-            "SELECT id, tecnico_id, admin_id, valor, descricao, data_deposito, created_at \
+            "SELECT id, tecnico_id, admin_id, valor::float8 AS valor, descricao, data_deposito, created_at \
              FROM depositos ORDER BY data_deposito DESC",
         )
         .fetch_all(&state.pool)
@@ -58,7 +58,7 @@ pub async fn create_deposito(
     let row = sqlx::query(
         "INSERT INTO depositos (id, tecnico_id, admin_id, valor, descricao, data_deposito) \
          VALUES ($1, $2, $3, $4, $5, $6) \
-         RETURNING id, tecnico_id, admin_id, valor, descricao, data_deposito, created_at",
+         RETURNING id, tecnico_id, admin_id, valor::float8 AS valor, descricao, data_deposito, created_at",
     )
     .bind(new_id)
     .bind(body.tecnico_id)

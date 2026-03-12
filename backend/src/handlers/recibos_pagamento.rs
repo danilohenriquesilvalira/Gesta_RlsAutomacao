@@ -20,7 +20,7 @@ pub async fn list_recibos_pagamento(
         let mut args = PgArguments::default();
         args.add(*tecnico_id).ok();
         sqlx::query_with(
-            "SELECT id, tecnico_id, admin_id, periodo, valor_bruto, valor_liquido, \
+            "SELECT id, tecnico_id, admin_id, periodo, valor_bruto::float8 AS valor_bruto, valor_liquido::float8 AS valor_liquido, \
              descricao, storage_path, url, created_at \
              FROM recibos_pagamento WHERE tecnico_id = $1 ORDER BY created_at DESC",
             args,
@@ -30,7 +30,7 @@ pub async fn list_recibos_pagamento(
         .map_err(|e| AppError::InternalError(e.to_string()))?
     } else {
         sqlx::query(
-            "SELECT id, tecnico_id, admin_id, periodo, valor_bruto, valor_liquido, \
+            "SELECT id, tecnico_id, admin_id, periodo, valor_bruto::float8 AS valor_bruto, valor_liquido::float8 AS valor_liquido, \
              descricao, storage_path, url, created_at \
              FROM recibos_pagamento ORDER BY created_at DESC",
         )
@@ -222,7 +222,7 @@ pub async fn create_recibo_pagamento(
         "INSERT INTO recibos_pagamento \
          (id, tecnico_id, admin_id, periodo, valor_bruto, valor_liquido, descricao, storage_path, url) \
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) \
-         RETURNING id, tecnico_id, admin_id, periodo, valor_bruto, valor_liquido, \
+         RETURNING id, tecnico_id, admin_id, periodo, valor_bruto::float8 AS valor_bruto, valor_liquido::float8 AS valor_liquido, \
          descricao, storage_path, url, created_at",
     )
     .bind(new_id)

@@ -5,6 +5,7 @@ use sqlx::Row;
 use uuid::Uuid;
 
 use crate::errors::AppError;
+use crate::handlers::auth::AuthUser;
 use crate::models::obra::{
     CreateObraRequest, ExecutanteInfo, Obra, ObraTecnico, ObraQuery, TecnicoInfo, UpdateObraRequest,
 };
@@ -87,6 +88,7 @@ async fn fetch_obra_by_id(
 pub async fn list_obras(
     state: web::Data<AppState>,
     query: web::Query<ObraQuery>,
+    _auth: AuthUser,
 ) -> Result<HttpResponse, AppError> {
     let mut conditions: Vec<String> = vec![];
     let mut args = PgArguments::default();
@@ -133,6 +135,7 @@ pub async fn list_obras(
 pub async fn minhas_obras(
     state: web::Data<AppState>,
     path: web::Path<Uuid>,
+    _auth: AuthUser,
 ) -> Result<HttpResponse, AppError> {
     let tecnico_id = path.into_inner();
 
@@ -160,6 +163,7 @@ pub async fn minhas_obras(
 pub async fn get_obra(
     state: web::Data<AppState>,
     path: web::Path<Uuid>,
+    _auth: AuthUser,
 ) -> Result<HttpResponse, AppError> {
     let obra_id = path.into_inner();
     let obra = fetch_obra_by_id(&state.pool, obra_id, &state.backend_url).await?;
@@ -169,13 +173,14 @@ pub async fn get_obra(
 pub async fn create_obra(
     state: web::Data<AppState>,
     body: web::Json<CreateObraRequest>,
+    _auth: AuthUser,
 ) -> Result<HttpResponse, AppError> {
     let new_id = Uuid::new_v4();
 
     sqlx::query(
         "INSERT INTO obras (id, codigo, nome, cliente, prazo, orcamento, created_by, \
          localizacao, lat, lng, status, progresso) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'em_andamento', 0)",
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'ativa', 0)",
     )
     .bind(new_id)
     .bind(&body.codigo)
@@ -212,6 +217,7 @@ pub async fn update_obra(
     state: web::Data<AppState>,
     path: web::Path<Uuid>,
     body: web::Json<UpdateObraRequest>,
+    _auth: AuthUser,
 ) -> Result<HttpResponse, AppError> {
     let obra_id = path.into_inner();
 
@@ -309,6 +315,7 @@ pub async fn update_obra(
 pub async fn delete_obra(
     state: web::Data<AppState>,
     path: web::Path<Uuid>,
+    _auth: AuthUser,
 ) -> Result<HttpResponse, AppError> {
     let obra_id = path.into_inner();
 

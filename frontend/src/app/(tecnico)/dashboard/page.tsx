@@ -15,7 +15,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useDepositos, useSaldoTecnico, useDespesas } from '@/lib/queries/despesas';
 import { useApontamentos } from '@/lib/queries/apontamentos';
-import { useObras } from '@/lib/queries/obras';
+import { useMinhasObras } from '@/lib/queries/obras';
 import type { DespesaStatus, TipoDespesa } from '@/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -112,7 +112,7 @@ export default function TecnicoDashboardPage() {
     profile ? { tecnicoId: profile.id } : undefined,
     { enabled: !!profile?.id }
   );
-  const { data: obras = [] } = useObras('ativa', profile?.id, { enabled: !!profile?.id });
+  const { data: obras = [] } = useMinhasObras(profile?.id ?? '', { enabled: !!profile?.id });
 
   const { totalDepositado, totalDespesasAprovadas, saldo } = useSaldoTecnico(profile?.id);
 

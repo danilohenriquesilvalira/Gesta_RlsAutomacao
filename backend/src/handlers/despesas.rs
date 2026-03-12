@@ -15,7 +15,7 @@ use crate::AppState;
 
 async fn fetch_full_despesa(state: &AppState, despesa_id: Uuid) -> Result<Despesa, AppError> {
     let row = sqlx::query(
-        "SELECT id, tecnico_id, obra_id, tipo_despesa, descricao, valor, \
+        "SELECT id, tecnico_id, obra_id, tipo_despesa, descricao, valor::float8 AS valor, \
          data_despesa, status, nota_rejeicao, created_at \
          FROM despesas WHERE id = $1",
     )
